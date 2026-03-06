@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crop Price Prediction</title>
+<link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1a0b;--card:#112211;--card2:#162816;--border:#1e3a1e;--green:#4caf50;--green-light:#81c784;--green-dim:#2e7d32;--gold:#ffd54f;--text:#e8f5e9;--muted:#7a9e7a;--red:#ef5350;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Mukta',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background-image:radial-gradient(ellipse at 20% 20%,rgba(46,125,50,0.07) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(76,175,80,0.04) 0%,transparent 50%);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px 36px;width:100%;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05);}
+.app-header{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+.app-icon{font-size:2rem;}
+.app-title{font-size:1.35rem;font-weight:700;color:var(--green-light);}
+.app-sub{font-size:0.72rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.lang-row{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+.lang-icon{font-size:1.1rem;}
+.lang-label{font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
+select{flex:1;padding:9px 12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Mukta',sans-serif;font-size:0.9rem;cursor:pointer;outline:none;transition:border-color 0.2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a9e7a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+select:focus{border-color:var(--green-dim);}
+.field{margin-bottom:18px;}
+.field-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:7px;display:block;}
+.crop-wrap{position:relative;}
+input[type=text],input[type=number]{width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Mukta',sans-serif;font-size:0.95rem;outline:none;transition:border-color 0.2s;}
+input::placeholder{color:var(--muted);}
+input:focus{border-color:var(--green-dim);}
+#crop-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a2e1a;border:1px solid var(--border);border-radius:10px;display:none;z-index:100;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:200px;overflow-y:auto;}
+.suggestion-item{padding:10px 14px;font-size:0.9rem;cursor:pointer;transition:background 0.15s;}
+.suggestion-item:hover{background:var(--green-dim);color:#fff;}
+.weather-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
+.btn-weather{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-family:'Mukta',sans-serif;font-size:0.88rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:7px;font-weight:500;}
+.btn-weather:hover{border-color:var(--green-dim);background:#1a2e1a;}
+.btn-weather.active{border-color:var(--green);background:rgba(76,175,80,0.1);color:var(--green-light);}
+#manual-fields{display:none;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;}
+#manual-fields.show{display:grid;}
+#location-status{font-size:0.78rem;color:var(--green);margin-top:8px;min-height:18px;display:flex;align-items:center;gap:6px;}
+.loc-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+#error-msg{font-size:0.82rem;color:var(--red);margin-top:8px;min-height:18px;}
+.crop-input-row{display:flex;gap:8px;align-items:stretch;}
+.crop-input-row input{flex:1;}
+.btn-mic{flex-shrink:0;width:46px;height:46px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:all 0.2s;position:relative;}
+.btn-mic:hover{border-color:var(--green-dim);color:var(--green-light);}
+.btn-mic.listening{border-color:var(--red);background:rgba(239,83,80,0.12);color:var(--red);animation:micPulse 1s ease infinite;}
+.btn-mic.listening::after{content:'';position:absolute;inset:-4px;border-radius:14px;border:2px solid var(--red);animation:micRing 1s ease infinite;}
+@keyframes micPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+@keyframes micRing{0%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1.3);}}
+.voice-status{font-size:0.75rem;color:var(--red);margin-top:5px;min-height:16px;display:flex;align-items:center;gap:5px;}
+.voice-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 0.8s ease infinite;}
+.btn-predict{width:100%;padding:14px;margin-top:20px;background:linear-gradient(135deg,#2e7d32 0%,#4caf50 100%);border:none;border-radius:12px;color:#fff;font-family:'Mukta',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 16px rgba(76,175,80,0.3);}
+.btn-predict:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(76,175,80,0.4);}
+.btn-predict:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.spinner-btn{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#result-card{display:none;margin-top:18px;background:var(--card2);border:1px solid rgba(76,175,80,0.3);border-radius:14px;padding:20px 22px;animation:fadeUp 0.4s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+.result-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:6px;}
+.result-price{font-size:2.2rem;font-weight:700;color:var(--green-light);}
+.result-unit{font-size:0.85rem;color:var(--muted);margin-left:4px;}
+.result-crop{display:inline-block;margin-top:8px;background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.2);color:var(--green);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+.result-source{font-size:0.7rem;color:var(--gold);margin-top:6px;}
+.btn-dashboard{display:block;width:100%;margin-top:14px;padding:10px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--green-light);font-family:'Mukta',sans-serif;font-size:0.88rem;cursor:pointer;text-align:center;text-decoration:none;transition:all 0.2s;}
+.btn-dashboard:hover{background:rgba(76,175,80,0.08);border-color:var(--green-dim);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="app-header">
+    <div class="app-icon">🌾</div>
+    <div>
+      <div class="app-title" id="app-title">Crop Price Prediction</div>
+      <div class="app-sub" id="app-sub">Real-time AI Forecast</div>
+    </div>
+  </div>
+  <div class="lang-row">
+    <span class="lang-icon">🌐</span>
+    <span class="lang-label" id="lbl-lang">Language</span>
+    <select id="language" onchange="changeLanguage()">
+      <option value="en">English</option>
+      <option value="hi">हिंदी (Hindi)</option>
+      <option value="kn">ಕನ್ನಡ (Kannada)</option>
+      <option value="ta">தமிழ் (Tamil)</option>
+      <option value="te">తెలుగు (Telugu)</option>
+      <option value="ml">മലയാളം (Malayalam)</option>
+      <option value="mr">मराठी (Marathi)</option>
+      <option value="gu">ગુજરાતી (Gujarati)</option>
+      <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+      <option value="bn">বাংলা (Bengali)</option>
+      <option value="or">ଓଡ଼ିଆ (Odia)</option>
+      <option value="as">অসমীয়া (Assamese)</option>
+      <option value="ur">اردو (Urdu)</option>
+      <option value="sa">संस्कृतम् (Sanskrit)</option>
+      <option value="kok">कोंकणी (Konkani)</option>
+      <option value="mai">मैथिली (Maithili)</option>
+      <option value="doi">डोगरी (Dogri)</option>
+      <option value="mni">মৈতৈলোন্ (Manipuri)</option>
+      <option value="sat">Santali</option>
+      <option value="ks">کٲشُر (Kashmiri)</option>
+      <option value="sd">سنڌي (Sindhi)</option>
+      <option value="ne">नेपाली (Nepali)</option>
+    </select>
+  </div>
+  <div class="field">
+    <label class="field-label" id="lbl-crop">Crop Name</label>
+    <div class="crop-wrap">
+      <div class="crop-input-row">
+        <input type="text" id="crop-input" placeholder="e.g. Tomato, Wheat, Onion" autocomplete="off">
+        <button class="btn-mic" id="mic-btn" onclick="toggleVoice()" title="Speak crop name">🎤</button>
+      </div>
+      <div class="voice-status" id="voice-status"></div>
+      <div id="crop-suggestions"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label class="field-label" id="lbl-state">State</label>
+    <select id="state-select">
+      <option value="Andhra Pradesh">Andhra Pradesh</option>
+      <option value="Assam">Assam</option>
+      <option value="Bihar">Bihar</option>
+      <option value="Chhattisgarh">Chhattisgarh</option>
+      <option value="Gujarat">Gujarat</option>
+      <option value="Haryana">Haryana</option>
+      <option value="Himachal Pradesh">Himachal Pradesh</option>
+      <option value="Jharkhand">Jharkhand</option>
+      <option value="Karnataka" selected>Karnataka</option>
+      <option value="Kerala">Kerala</option>
+      <option value="Madhya Pradesh">Madhya Pradesh</option>
+      <option value="Maharashtra">Maharashtra</option>
+      <option value="Odisha">Odisha</option>
+      <option value="Punjab">Punjab</option>
+      <option value="Rajasthan">Rajasthan</option>
+      <option value="Tamil Nadu">Tamil Nadu</option>
+      <option value="Telangana">Telangana</option>
+      <option value="Uttar Pradesh">Uttar Pradesh</option>
+      <option value="Uttarakhand">Uttarakhand</option>
+      <option value="West Bengal">West Bengal</option>
+    </select>
+  </div>
+  <div class="field">
+    <label class="field-label" id="lbl-weather">Weather Data</label>
+    <div class="weather-row">
+      <button class="btn-weather" id="btn-live" onclick="useLiveLocation()">📍 <span id="lbl-live">Live Location</span></button>
+      <button class="btn-weather" id="btn-manual" onclick="useManual()">✏️ <span id="lbl-manual">Enter Manually</span></button>
+    </div>
+    <div id="manual-fields">
+      <input type="number" id="rainfall" placeholder="Rain (mm)" step="0.1" min="0">
+      <input type="number" id="temperature" placeholder="Temp (°C)" step="0.1">
+      <input type="number" id="humidity" placeholder="Humidity %" step="1" min="0" max="100">
+    </div>
+    <div id="location-status"></div>
+  </div>
+  <div id="error-msg"></div>
+  <button class="btn-predict" id="predict-btn" onclick="predictPrice()">
+    <span id="btn-predict-text">🔍 Predict Price</span>
+    <div class="spinner-btn" id="btn-spinner"></div>
+  </button>
+  <div id="result-card">
+    <div class="result-label" id="lbl-predicted">Today's Predicted Price</div>
+    <div><span class="result-price" id="result-price">—</span><span class="result-unit">/quintal</span></div>
+    <div class="result-crop" id="result-crop-name"></div>
+    <div class="result-source" id="result-source"></div>
+    <a class="btn-dashboard" id="dashboard-link" href="#">📊 View Full Dashboard →</a>
+  </div>
+</div>
+<script>
+const T={en:{title:"Crop Price Prediction",sub:"Real-time AI Forecast",lang:"Language",crop:"Crop Name",state:"State",weather:"Weather Data",live:"Live Location",manual:"Enter Manually",predict:"🔍 Predict Price",predicted:"Today's Predicted Price",dashboard:"📊 View Full Dashboard →",errorCrop:"Please enter a crop name",errorWeather:"Please enter weather data or use live location",fetching:"Fetching weather…",located:"Location detected",sourceModel:"ML Model",sourceLive:"Live Agmarknet",sourceUnknown:"Unknown"},hi:{title:"फसल मूल्य पूर्वानुमान",sub:"रीयल-टाइम AI पूर्वानुमान",lang:"भाषा",crop:"फसल का नाम",state:"राज्य",weather:"मौसम डेटा",live:"लाइव स्थान",manual:"मैन्युअल दर्ज करें",predict:"🔍 मूल्य जानें",predicted:"आज का अनुमानित मूल्य",dashboard:"📊 पूरा डैशबोर्ड देखें →",errorCrop:"कृपया फसल का नाम दर्ज करें",errorWeather:"मौसम डेटा दर्ज करें या लाइव स्थान उपयोग करें",fetching:"मौसम प्राप्त हो रहा है…",located:"स्थान मिल गया",sourceModel:"ML मॉडल",sourceLive:"लाइव Agmarknet",sourceUnknown:"अज्ञात"},kn:{title:"ಬೆಳೆ ಬೆಲೆ ಮುನ್ಸೂಚನೆ",sub:"ರಿಯಲ್-ಟೈಮ್ ಎಐ ಮುನ್ಸೂಚನೆ",lang:"ಭಾಷೆ",crop:"ಬೆಳೆ ಹೆಸರು",state:"ರಾಜ್ಯ",weather:"ಹವಾಮಾನ ಡೇಟಾ",live:"ನೇರ ಸ್ಥಳ",manual:"ಕೈಯಿಂದ ನಮೂದಿಸಿ",predict:"🔍 ಬೆಲೆ ತಿಳಿಯಿರಿ",predicted:"ಇಂದಿನ ಅಂದಾಜು ಬೆಲೆ",dashboard:"📊 ಪೂರ್ಣ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ನೋಡಿ →",errorCrop:"ದಯವಿಟ್ಟು ಬೆಳೆ ಹೆಸರು ನಮೂದಿಸಿ",errorWeather:"ಹವಾಮಾನ ಡೇಟಾ ನಮೂದಿಸಿ",fetching:"ಹವಾಮಾನ ಪಡೆಯಲಾಗುತ್ತಿದೆ…",located:"ಸ್ಥಳ ಪತ್ತೆಯಾಗಿದೆ",sourceModel:"ML ಮಾದರಿ",sourceLive:"ಲೈವ್ Agmarknet",sourceUnknown:"ಅಜ್ಞಾತ"},ta:{title:"பயிர் விலை கணிப்பு",sub:"நேரடி AI கணிப்பு",lang:"மொழி",crop:"பயிர் பெயர்",state:"மாநிலம்",weather:"வானிலை தரவு",live:"நேரடி இடம்",manual:"கைமுறையாக",predict:"🔍 விலை காண்",predicted:"இன்றைய கணிப்பு விலை",dashboard:"📊 முழு டாஷ்போர்டு →",errorCrop:"பயிர் பெயர் உள்ளிடவும்",errorWeather:"வானிலை தரவை உள்ளிடவும்",fetching:"வானிலை பெறப்படுகிறது…",located:"இடம் கண்டுபிடிக்கப்பட்டது",sourceModel:"ML மாதிரி",sourceLive:"நேரடி Agmarknet",sourceUnknown:"தெரியவில்லை"},te:{title:"పంట ధర అంచనా",sub:"రియల్-టైమ్ AI అంచనా",lang:"భాష",crop:"పంట పేరు",state:"రాష్ట్రం",weather:"వాతావరణ డేటా",live:"లైవ్ లొకేషన్",manual:"మాన్యువల్‌గా",predict:"🔍 ధర తెలుసుకోండి",predicted:"ఈరోజు అంచనా ధర",dashboard:"📊 పూర్తి డాష్‌బోర్డ్ →",errorCrop:"పంట పేరు నమోదు చేయండి",errorWeather:"వాతావరణ డేటా నమోదు చేయండి",fetching:"వాతావరణం పొందుతోంది…",located:"లొకేషన్ కనుగొనబడింది",sourceModel:"ML మోడల్",sourceLive:"లైవ్ Agmarknet",sourceUnknown:"తెలియదు"},ml:{title:"വിള വില പ്രവചനം",sub:"തൽസമയ AI പ്രവചനം",lang:"ഭാഷ",crop:"വിളയുടെ പേര്",state:"സംസ്ഥാനം",weather:"കാലാവസ്ഥ ഡേറ്റ",live:"തൽസമയ സ്ഥലം",manual:"സ്വമേധയാ",predict:"🔍 വില കണ്ടെത്തുക",predicted:"ഇന്നത്തെ കണക്കാക്കിയ വില",dashboard:"📊 ഡാഷ്‌ബോർഡ് →",errorCrop:"വിളയുടെ പേര് നൽകുക",errorWeather:"കാലാവസ്ഥ ഡേറ്റ നൽകുക",fetching:"കാലാവസ്ഥ ലഭിക്കുന്നു…",located:"സ്ഥലം കണ്ടെത്തി",sourceModel:"ML മോഡൽ",sourceLive:"Agmarknet",sourceUnknown:"അജ്ഞാതം"},mr:{title:"पीक किंमत अंदाज",sub:"रिअल-टाइम AI अंदाज",lang:"भाषा",crop:"पिकाचे नाव",state:"राज्य",weather:"हवामान डेटा",live:"थेट स्थान",manual:"मॅन्युअली",predict:"🔍 किंमत जाणून घ्या",predicted:"आजची अंदाजित किंमत",dashboard:"📊 डॅशबोर्ड पहा →",errorCrop:"पिकाचे नाव प्रविष्ट करा",errorWeather:"हवामान डेटा प्रविष्ट करा",fetching:"हवामान मिळवत आहे…",located:"स्थान सापडले",sourceModel:"ML मॉडेल",sourceLive:"थेट Agmarknet",sourceUnknown:"अज्ञात"},gu:{title:"પાક ભાવ આગાહી",sub:"AI આગાહી",lang:"ભાષા",crop:"પાકનું નામ",state:"રાજ્ય",weather:"હવામાન ડેટા",live:"લાઈવ સ્થળ",manual:"મેન્યુઅલ",predict:"🔍 ભાવ જાણો",predicted:"આજનો અંદાજિત ભાવ",dashboard:"📊 ડૅશબોર્ડ →",errorCrop:"પાકનું નામ દાખલ કરો",errorWeather:"હવામાન ડેટા દાખલ કરો",fetching:"હવામાન મળી રહ્યું છે…",located:"સ્થળ મળ્યું",sourceModel:"ML મોડેલ",sourceLive:"Agmarknet",sourceUnknown:"અજ્ઞાત"},pa:{title:"ਫਸਲ ਕੀਮਤ ਭਵਿੱਖਬਾਣੀ",sub:"AI ਭਵਿੱਖਬਾਣੀ",lang:"ਭਾਸ਼ਾ",crop:"ਫਸਲ ਦਾ ਨਾਮ",state:"ਰਾਜ",weather:"ਮੌਸਮ ਡੇਟਾ",live:"ਲਾਈਵ ਟਿਕਾਣਾ",manual:"ਦਸਤੀ",predict:"🔍 ਕੀਮਤ ਜਾਣੋ",predicted:"ਅੱਜ ਦੀ ਅਨੁਮਾਨਿਤ ਕੀਮਤ",dashboard:"📊 ਡੈਸ਼ਬੋਰਡ →",errorCrop:"ਫਸਲ ਦਾ ਨਾਮ ਦਾਖਲ ਕਰੋ",errorWeather:"ਮੌਸਮ ਡੇਟਾ ਦਾਖਲ ਕਰੋ",fetching:"ਮੌਸਮ ਮਿਲ ਰਿਹਾ ਹੈ…",located:"ਟਿਕਾਣਾ ਮਿਲਿਆ",sourceModel:"ML ਮਾਡਲ",sourceLive:"Agmarknet",sourceUnknown:"ਅਣਜਾਣ"},bn:{title:"ফসল মূল্য পূর্বাভাস",sub:"রিয়েল-টাইম AI পূর্বাভাস",lang:"ভাষা",crop:"ফসলের নাম",state:"রাজ্য",weather:"আবহাওয়া ডেটা",live:"লাইভ অবস্থান",manual:"ম্যানুয়াল",predict:"🔍 মূল্য জানুন",predicted:"আজকের অনুমানিত মূল্য",dashboard:"📊 ড্যাশবোর্ড →",errorCrop:"ফসলের নাম দিন",errorWeather:"আবহাওয়া ডেটা দিন",fetching:"আবহাওয়া পাওয়া যাচ্ছে…",located:"অবস্থান পাওয়া গেছে",sourceModel:"ML মডেল",sourceLive:"Agmarknet",sourceUnknown:"অজানা"},or:{title:"ଫସଲ ମୂଲ୍ୟ ପୂର୍ବାନୁମାନ",sub:"AI ପୂର୍ବାନୁମାନ",lang:"ଭାଷା",crop:"ଫସଲ ନାମ",state:"ରାଜ୍ୟ",weather:"ପାଣିପାଗ",live:"ଲାଇଭ ଅବସ୍ଥାନ",manual:"ମାନୁଆଲ",predict:"🔍 ମୂଲ୍ୟ ଜାଣନ୍ତୁ",predicted:"ଆଜିର ଅନୁମାନ ମୂଲ୍ୟ",dashboard:"📊 ଡ୍ୟାଶ୍‌ବୋର୍ଡ →",errorCrop:"ଫସଲ ନାମ ଲଖନ୍ତୁ",errorWeather:"ପାଣିପାଗ ଲଖନ୍ତୁ",fetching:"ପାଣିପାଗ ମିଳୁଛି…",located:"ଅବସ୍ଥାନ ମିଳିଲା",sourceModel:"ML ମଡେଲ",sourceLive:"Agmarknet",sourceUnknown:"ଅଜ୍ଞାତ"},as:{title:"শস্য মূল্য পূৰ্বানুমান",sub:"AI পূৰ্বানুমান",lang:"ভাষা",crop:"শস্যৰ নাম",state:"ৰাজ্য",weather:"বতৰ ডেটা",live:"লাইভ অৱস্থান",manual:"মেনুৱেল",predict:"🔍 মূল্য জানক",predicted:"আজিৰ অনুমানিত মূল্য",dashboard:"📊 ডেশ্বব'ৰ্ড →",errorCrop:"শস্যৰ নাম দিয়ক",errorWeather:"বতৰ ডেটা দিয়ক",fetching:"বতৰ পোৱা গৈছে…",located:"অৱস্থান পোৱা গ'ল",sourceModel:"ML মডেল",sourceLive:"Agmarknet",sourceUnknown:"অজ্ঞাত"},ur:{title:"فصل قیمت پیشن گوئی",sub:"ریل ٹائیم AI",lang:"زبان",crop:"فصل کا نام",state:"ریاست",weather:"موسمی ڈیٹا",live:"لائیو مقام",manual:"دستی",predict:"🔍 قیمت جانیں",predicted:"آج کی متوقع قیمت",dashboard:"📊 ڈیش بورڈ →",errorCrop:"فصل کا نام درج کریں",errorWeather:"موسمی ڈیٹا درج کریں",fetching:"موسم حاصل ہو رہا ہے…",located:"مقام مل گیا",sourceModel:"ML ماڈل",sourceLive:"Agmarknet",sourceUnknown:"نامعلوم"},sa:{title:"शस्यमूल्यपूर्वानुमानम्",sub:"AI पूर्वानुमानम्",lang:"भाषा",crop:"शस्यनाम",state:"राज्यम्",weather:"वायुमण्डलम्",live:"जीवन्तस्थानम्",manual:"हस्तचालितम्",predict:"🔍 मूल्यं जानीत",predicted:"अद्यतनं मूल्यम्",dashboard:"📊 डैशबोर्डम् →",errorCrop:"शस्यनाम प्रविशत",errorWeather:"वायुमण्डलीयदत्तांशं प्रविशत",fetching:"प्राप्यते…",located:"स्थानं लब्धम्",sourceModel:"ML प्रतिरूपम्",sourceLive:"Agmarknet",sourceUnknown:"अज्ञातम्"},kok:{title:"पीक किंमत अंदाज",sub:"थेट AI अंदाज",lang:"भास",crop:"पिकाचें नांव",state:"राज्य",weather:"हवामान",live:"थेट थळ",manual:"हाताने",predict:"🔍 किंमत जाणात",predicted:"आयज्याची किंमत",dashboard:"📊 डॅशबोर्ड →",errorCrop:"पिकाचें नांव घालात",errorWeather:"हवामान डेटा घालात",fetching:"हवामान मेळटा…",located:"थळ मेळ्ळें",sourceModel:"ML मॉडेल",sourceLive:"Agmarknet",sourceUnknown:"अज्ञात"},mai:{title:"फसल मूल्य पूर्वानुमान",sub:"AI अनुमान",lang:"भाषा",crop:"फसलक नाम",state:"राज्य",weather:"मौसम",live:"लाइव स्थान",manual:"मैनुअल",predict:"🔍 मूल्य जानू",predicted:"आइ के मूल्य",dashboard:"📊 डैशबोर्ड →",errorCrop:"फसलक नाम दर्ज करू",errorWeather:"मौसम डेटा दर्ज करू",fetching:"मौसम आनल जा रहल…",located:"स्थान भेटल",sourceModel:"ML मॉडल",sourceLive:"Agmarknet",sourceUnknown:"अज्ञात"},doi:{title:"फसल भाव अनुमान",sub:"AI अनुमान",lang:"भाशा",crop:"फसल दा नां",state:"सूबा",weather:"मौसम",live:"लाइव जगह",manual:"हत्थीं भरो",predict:"🔍 भाव जानो",predicted:"अज्ज दा भाव",dashboard:"📊 डैशबोर्ड →",errorCrop:"फसल दा नां भरो",errorWeather:"मौसम डेटा भरो",fetching:"मौसम मिल रिया ऐ…",located:"जगह मिल गई",sourceModel:"ML मॉडल",sourceLive:"Agmarknet",sourceUnknown:"अनजान"},mni:{title:"ꯃꯤꯠꯅꯕ ꯌꯨꯝꯐꯝ",sub:"AI ꯑꯩꯕ",lang:"ꯃꯤꯑꯣꯏꯕ",crop:"ꯃꯤꯠꯅꯕ ꯃꯃꯤꯡ",state:"ꯁꯇꯦꯠ",weather:"ꯃꯊꯧ ꯁꯅꯥ",live:"ꯂꯥꯏꯕ ꯃꯐꯝ",manual:"ꯃꯦꯅꯨꯑꯦꯜ",predict:"🔍 ꯌꯨꯝꯐꯝ",predicted:"ꯑꯃꯨꯛꯇꯥ ꯑꯩꯕ",dashboard:"📊 ꯗꯦꯁꯕꯣꯔꯗ →",errorCrop:"ꯃꯃꯤꯡ ꯄꯨꯠꯉꯩꯕ",errorWeather:"ꯃꯊꯧ ꯄꯨꯠꯉꯩꯕ",fetching:"ꯂꯩꯔꯕ…",located:"ꯃꯐꯝ ꯐꯥꯎꯕꯥ",sourceModel:"ML ꯃꯣꯗꯦꯜ",sourceLive:"Agmarknet",sourceUnknown:"ꯌꯥꯑꯣꯅ"},sat:{title:"Hor Mone Anuman",sub:"AI Anuman",lang:"Ol",crop:"Hor Gom",state:"Rajya",weather:"Serma",live:"Live Serak",manual:"Manual",predict:"🔍 Mone Caba",predicted:"Noam Mone Anuman",dashboard:"📊 Dashboard →",errorCrop:"Hor Gom Jonog",errorWeather:"Serma Jonog",fetching:"Serma Lena…",located:"Serak Mela",sourceModel:"ML Model",sourceLive:"Agmarknet",sourceUnknown:"Bujhaw Bae"},ks:{title:"کاشتکاری نرخ اندازہ",sub:"AI اندازہ",lang:"زبان",crop:"کاشتکاری ناو",state:"صوبہ",weather:"موسم",live:"لائیو جاے",manual:"ہتھس",predict:"🔍 نرخ ژانو",predicted:"اژ نرخ",dashboard:"📊 ڈیش بورڈ →",errorCrop:"ناو درج کرو",errorWeather:"موسم ڈیٹا درج کرو",fetching:"موسم اٮ۪نو رود…",located:"جاے ملیو",sourceModel:"ML ماڈل",sourceLive:"Agmarknet",sourceUnknown:"نہ پتہ"},sd:{title:"فصل قيمت اندازو",sub:"AI اندازو",lang:"ٻولي",crop:"فصل جو نالو",state:"صوبو",weather:"موسم",live:"لائيو مڪان",manual:"هٿ سان",predict:"🔍 قيمت ڄاڻو",predicted:"اڄ جي قيمت",dashboard:"📊 ڊيشبورڊ →",errorCrop:"فصل جو نالو داخل ڪريو",errorWeather:"موسم ڊيٽا داخل ڪريو",fetching:"موسم ملي رهيو آهي…",located:"مڪان مليو",sourceModel:"ML ماڊل",sourceLive:"Agmarknet",sourceUnknown:"نامعلوم"},ne:{title:"बाली मूल्य पूर्वानुमान",sub:"AI पूर्वानुमान",lang:"भाषा",crop:"बालीको नाम",state:"राज्य",weather:"मौसम",live:"लाइभ स्थान",manual:"म्यानुअल",predict:"🔍 मूल्य थाहा पाउनुस्",predicted:"आजको मूल्य",dashboard:"📊 ड्यासबोर्ड →",errorCrop:"बालीको नाम प्रविष्ट गर्नुस्",errorWeather:"मौसम डेटा प्रविष्ट गर्नुस्",fetching:"मौसम प्राप्त गरिँदैछ…",located:"स्थान फेला पर्‍यो",sourceModel:"ML मोडल",sourceLive:"Agmarknet",sourceUnknown:"अज्ञात"}};
+
+const crops=["Tomato","Onion","Potato","Brinjal","Cauliflower","Cabbage","Okra","Chilli","Garlic","Ginger","Turmeric","Cucumber","Pumpkin","Coriander","Apple","Mango","Banana","Papaya","Pomegranate","Grapes","Orange","Lemon","Guava","Watermelon","Rice","Wheat","Bajra","Maize","Jowar","Arhar Dal","Moong Dal","Urad Dal","Chana","Masoor Dal","Soybean","Groundnut","Mustard","Cotton","Sugarcane","Spinach","Bitter Gourd","Bottle Gourd","Drumstick","Jackfruit","Coconut","Coffee","Tea"];
+
+let currentLang="en",weatherData=null,manualMode=false;
+
+// ── Voice Input ────────────────────────────────────────────────────────────
+const LANG_CODES={
+  en:"en-IN", hi:"hi-IN", kn:"kn-IN", ta:"ta-IN", te:"te-IN",
+  ml:"ml-IN", mr:"mr-IN", gu:"gu-IN", pa:"pa-IN", bn:"bn-IN",
+  or:"or-IN", as:"as-IN", ur:"ur-IN", sa:"sa-IN", kok:"kok-IN",
+  mai:"mai-IN", doi:"doi-IN", mni:"mni-IN", sat:"sat-IN",
+  ks:"ks-IN", sd:"sd-IN", ne:"ne-NP"
+};
+
+const VOICE_PROMPTS={
+  en:"Listening… say crop name",hi:"सुन रहा हूँ… फसल का नाम बोलें",kn:"ಕೇಳುತ್ತಿದ್ದೇನೆ… ಬೆಳೆ ಹೆಸರು ಹೇಳಿ",
+  ta:"கேட்கிறேன்… பயிர் பெயர் சொல்லுங்கள்",te:"వింటున్నాను… పంట పేరు చెప్పండి",
+  ml:"കേൾക്കുന്നു… വിളയുടെ പേര് പറയൂ",mr:"ऐकतोय… पिकाचे नाव सांगा",
+  gu:"સાંભળું છું… પાકનું નામ બોલો",pa:"ਸੁਣ ਰਿਹਾ ਹਾਂ… ਫਸਲ ਦਾ ਨਾਮ ਦੱਸੋ",
+  bn:"শুনছি… ফসলের নাম বলুন",or:"ଶୁଣୁଛି… ଫସଲ ନାମ କୁହନ୍ତୁ",
+  as:"শুনিছো… শস্যৰ নাম কওক",ur:"سن رہا ہوں… فصل کا نام بتائیں",
+  sa:"শ্রুণোমি… শস্যনাম বদত",default:"Listening…"
+};
+
+// Map spoken words in various languages to English crop names
+const VOICE_CROP_MAP={
+  // Hindi
+  "टमाटर":"Tomato","प्याज":"Onion","आलू":"Potato","गेहूं":"Wheat","चावल":"Rice",
+  "मक्का":"Maize","बाजरा":"Bajra","सोयाबीन":"Soybean","कपास":"Cotton","गन्ना":"Sugarcane",
+  "बैंगन":"Brinjal","फूलगोभी":"Cauliflower","पत्तागोभी":"Cabbage","भिंडी":"Okra",
+  "मिर्च":"Chilli","लहसुन":"Garlic","अदरक":"Ginger","हल्दी":"Turmeric","सरसों":"Mustard",
+  "मूंगफली":"Groundnut","आम":"Mango","केला":"Banana","अंगूर":"Grapes","संतरा":"Orange",
+  "नींबू":"Lemon","अमरूद":"Guava","तरबूज":"Watermelon","ककड़ी":"Cucumber",
+  // Kannada
+  "ಟೊಮ್ಯಾಟೊ":"Tomato","ಈರುಳ್ಳಿ":"Onion","ಆಲೂಗಡ್ಡೆ":"Potato","ಗೋಧಿ":"Wheat","ಅಕ್ಕಿ":"Rice",
+  "ಮೆಕ್ಕೆಜೋಳ":"Maize","ರಾಗಿ":"Ragi","ಸೋಯಾಬೀನ್":"Soybean","ಹತ್ತಿ":"Cotton","ಕಬ್ಬು":"Sugarcane",
+  "ಬದನೆ":"Brinjal","ಹೂಕೋಸು":"Cauliflower","ಎಲೆಕೋಸು":"Cabbage","ಬೆಂಡೆ":"Okra",
+  "ಮೆಣಸಿನಕಾಯಿ":"Chilli","ಬೆಳ್ಳುಳ್ಳಿ":"Garlic","ಶುಂಠಿ":"Ginger","ಅರಿಸಿನ":"Turmeric",
+  "ಸಾಸಿವೆ":"Mustard","ಕಡಲೆ":"Groundnut","ಮಾವು":"Mango","ಬಾಳೆ":"Banana","ಖರ್ಜೂರ":"Grapes",
+  // Telugu
+  "టమాటో":"Tomato","ఉల్లిపాయ":"Onion","బంగాళాదుంప":"Potato","గోధుమ":"Wheat","బియ్యం":"Rice",
+  "మొక్కజొన్న":"Maize","సోయాబీన్":"Soybean","పత్తి":"Cotton","చెరకు":"Sugarcane",
+  "వంకాయ":"Brinjal","కాలీఫ్లవర్":"Cauliflower","క్యాబేజీ":"Cabbage","బెండకాయ":"Okra",
+  "మిర్చి":"Chilli","వెల్లుల్లి":"Garlic","అల్లం":"Ginger","పసుపు":"Turmeric","ఆవాలు":"Mustard",
+  "వేరుశెనగ":"Groundnut","మామిడి":"Mango","అరటి":"Banana","ద్రాక్ష":"Grapes",
+  // Tamil
+  "தக்காளி":"Tomato","வெங்காயம்":"Onion","உருளைக்கிழங்கு":"Potato","கோதுமை":"Wheat","அரிசி":"Rice",
+  "சோளம்":"Maize","சோயாபீன்":"Soybean","பருத்தி":"Cotton","கரும்பு":"Sugarcane",
+  "கத்தரிக்காய்":"Brinjal","காலிஃபிளவர்":"Cauliflower","முட்டைகோஸ்":"Cabbage","வெண்டைக்காய்":"Okra",
+  "மிளகாய்":"Chilli","பூண்டு":"Garlic","இஞ்சி":"Ginger","மஞ்சள்":"Turmeric","கடுகு":"Mustard",
+  "வேர்க்கடலை":"Groundnut","மாம்பழம்":"Mango","வாழைப்பழம்":"Banana","திராட்சை":"Grapes",
+  // Malayalam
+  "തക്കാളി":"Tomato","ഉള്ളി":"Onion","ഉരുളക്കിഴങ്ങ്":"Potato","ഗോതമ്പ്":"Wheat","അരി":"Rice",
+  "ചോളം":"Maize","സോയാബീൻ":"Soybean","പരുത്തി":"Cotton","കരിമ്പ്":"Sugarcane",
+  "വഴുതന":"Brinjal","കോളിഫ്ലവർ":"Cauliflower","കാബേജ്":"Cabbage","വെണ്ടക്ക":"Okra",
+  "മുളക്":"Chilli","വെളുത്തുള്ളി":"Garlic","ഇഞ്ചി":"Ginger","മഞ്ഞൾ":"Turmeric","കടുക്":"Mustard",
+  "നിലക്കടല":"Groundnut","മാങ്ങ":"Mango","വാഴക്കുല":"Banana","മുന്തിരി":"Grapes",
+};
+
+let recognition=null, isListening=false;
+
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
+    document.getElementById("voice-status").innerHTML="❌ Voice not supported in this browser. Use Chrome.";
+    return;
+  }
+  if(isListening){ stopVoice(); return; }
+  startVoice();
+}
+
+function startVoice(){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SpeechRecognition();
+  recognition.lang=LANG_CODES[currentLang]||"en-IN";
+  recognition.interimResults=true;
+  recognition.maxAlternatives=5;
+  recognition.continuous=false;
+
+  const micBtn=document.getElementById("mic-btn");
+  const voiceStatus=document.getElementById("voice-status");
+  const prompt=VOICE_PROMPTS[currentLang]||VOICE_PROMPTS.default;
+
+  isListening=true;
+  micBtn.classList.add("listening");
+  micBtn.textContent="⏹";
+  voiceStatus.innerHTML=`<div class="voice-dot"></div> ${prompt}`;
+
+  recognition.onresult=(e)=>{
+    let transcript="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      transcript=e.results[i][0].transcript.trim();
+    }
+    if(transcript){
+      // Try to map to known English crop name
+      const mapped=mapVoiceToCrop(transcript);
+      document.getElementById("crop-input").value=mapped||transcript;
+      // Trigger suggestion refresh
+      document.getElementById("crop-input").dispatchEvent(new Event("input"));
+      voiceStatus.innerHTML=`✅ "${mapped||transcript}"`;
+    }
+  };
+
+  recognition.onerror=(e)=>{
+    const msgs={
+      "not-allowed":"Microphone access denied. Allow mic in browser settings.",
+      "no-speech":"No speech detected. Try again.",
+      "network":"Network error. Check connection.",
+      "audio-capture":"No microphone found."
+    };
+    voiceStatus.innerHTML=`❌ ${msgs[e.error]||"Error: "+e.error}`;
+    stopVoice();
+  };
+
+  recognition.onend=()=>{ stopVoice(); };
+  recognition.start();
+}
+
+function stopVoice(){
+  if(recognition){try{recognition.stop();}catch(e){}}
+  isListening=false;
+  const micBtn=document.getElementById("mic-btn");
+  micBtn.classList.remove("listening");
+  micBtn.textContent="🎤";
+  // Clear status after 3s
+  setTimeout(()=>{
+    const vs=document.getElementById("voice-status");
+    if(vs&&!vs.innerHTML.startsWith("❌"))vs.innerHTML="";
+  },3000);
+}
+
+function mapVoiceToCrop(spoken){
+  const s=spoken.toLowerCase().trim();
+  // Direct map from native language words
+  if(VOICE_CROP_MAP[spoken]) return VOICE_CROP_MAP[spoken];
+  // Case-insensitive English match
+  const crops=["Tomato","Onion","Potato","Brinjal","Cauliflower","Cabbage","Okra","Chilli",
+    "Garlic","Ginger","Turmeric","Cucumber","Pumpkin","Coriander","Apple","Mango","Banana",
+    "Papaya","Pomegranate","Grapes","Orange","Lemon","Guava","Watermelon","Rice","Wheat",
+    "Bajra","Maize","Jowar","Arhar Dal","Moong Dal","Urad Dal","Chana","Masoor Dal",
+    "Soybean","Groundnut","Mustard","Cotton","Sugarcane","Spinach","Bitter Gourd",
+    "Bottle Gourd","Drumstick","Jackfruit","Coconut","Coffee","Tea","Ragi"];
+  for(const c of crops){
+    if(c.toLowerCase()===s||c.toLowerCase().includes(s)||s.includes(c.toLowerCase()))
+      return c;
+  }
+  // Partial map check
+  for(const[k,v] of Object.entries(VOICE_CROP_MAP)){
+    if(k.includes(spoken)||spoken.includes(k)) return v;
+  }
+  return null;
+}
+
+function changeLanguage(){
+  currentLang=document.getElementById("language").value;
+  const t=T[currentLang]||T.en;
+  document.getElementById("app-title").textContent=t.title;
+  document.getElementById("app-sub").textContent=t.sub;
+  document.getElementById("lbl-lang").textContent=t.lang;
+  document.getElementById("lbl-crop").textContent=t.crop;
+  document.getElementById("lbl-state").textContent=t.state;
+  document.getElementById("lbl-weather").textContent=t.weather;
+  document.getElementById("lbl-live").textContent=t.live;
+  document.getElementById("lbl-manual").textContent=t.manual;
+  document.getElementById("btn-predict-text").textContent=t.predict;
+  document.getElementById("lbl-predicted").textContent=t.predicted;
+  document.getElementById("dashboard-link").textContent=t.dashboard;
+}
+
+const cropInput=document.getElementById("crop-input");
+const suggBox=document.getElementById("crop-suggestions");
+cropInput.addEventListener("input",()=>{
+  const val=cropInput.value.trim().toLowerCase();
+  suggBox.innerHTML="";
+  if(!val){suggBox.style.display="none";return;}
+  const matches=crops.filter(c=>c.toLowerCase().includes(val)).slice(0,8);
+  if(!matches.length){suggBox.style.display="none";return;}
+  matches.forEach(c=>{
+    const div=document.createElement("div");
+    div.className="suggestion-item";div.textContent=c;
+    div.onmousedown=(e)=>{e.preventDefault();cropInput.value=c;suggBox.style.display="none";};
+    suggBox.appendChild(div);
+  });
+  suggBox.style.display="block";
+});
+cropInput.addEventListener("blur",()=>setTimeout(()=>{suggBox.style.display="none";},150));
+
+function useLiveLocation(){
+  const t=T[currentLang]||T.en;
+  const statusEl=document.getElementById("location-status");
+  document.getElementById("btn-live").classList.add("active");
+  document.getElementById("btn-manual").classList.remove("active");
+  document.getElementById("manual-fields").classList.remove("show");
+  manualMode=false;weatherData=null;clearError();
+  statusEl.innerHTML=`<div class="loc-dot"></div> ${t.fetching}`;
+  if(!navigator.geolocation){showError("Geolocation not supported.");return;}
+  navigator.geolocation.getCurrentPosition(
+    async(pos)=>{
+      try{
+        const url=`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,relative_humidity_2m,precipitation&timezone=auto`;
+        const res=await fetch(url);if(!res.ok)throw new Error();
+        const data=await res.json();
+        weatherData={temperature:data.current.temperature_2m,humidity:data.current.relative_humidity_2m,rainfall:data.current.precipitation};
+        statusEl.innerHTML=`<div class="loc-dot"></div> ${t.located} · ${weatherData.temperature}°C · ${weatherData.humidity}% RH`;
+      }catch{showError("Could not fetch weather. Try manual entry.");statusEl.innerHTML="";document.getElementById("btn-live").classList.remove("active");}
+    },
+    (err)=>{
+      statusEl.innerHTML="";document.getElementById("btn-live").classList.remove("active");
+      showError(err.code===1?"Location denied. Use manual entry.":"Could not get location.");
+    }
+  );
+}
+
+function useManual(){
+  manualMode=true;weatherData=null;
+  document.getElementById("manual-fields").classList.add("show");
+  document.getElementById("btn-manual").classList.add("active");
+  document.getElementById("btn-live").classList.remove("active");
+  document.getElementById("location-status").innerHTML="";clearError();
+}
+
+async function predictPrice(){
+  const t=T[currentLang]||T.en;
+  const crop=cropInput.value.trim();
+  const state=document.getElementById("state-select").value;
+  clearError();document.getElementById("result-card").style.display="none";
+  if(!crop){showError(t.errorCrop);return;}
+  let rainfall,temperature,humidity;
+  if(weatherData){
+    rainfall=weatherData.rainfall;temperature=weatherData.temperature;humidity=weatherData.humidity;
+  }else if(manualMode){
+    temperature=parseFloat(document.getElementById("temperature").value);
+    rainfall=parseFloat(document.getElementById("rainfall").value)||0;
+    humidity=parseFloat(document.getElementById("humidity").value)||60;
+    if(isNaN(temperature)){showError(t.errorWeather);return;}
+  }else{showError(t.errorWeather);return;}
+  const btn=document.getElementById("predict-btn");
+  const btnText=document.getElementById("btn-predict-text");
+  const spinner=document.getElementById("btn-spinner");
+  btn.disabled=true;btnText.style.display="none";spinner.style.display="block";
+  try{
+    const res=await fetch("http://127.0.0.1:5000/predict",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({crop,rainfall,temperature,humidity,state})
+    });
+    const data=await res.json();
+    if(!res.ok||data.error){showError(data.error||"Prediction failed. Is Flask running?");return;}
+    document.getElementById("result-price").textContent=`₹${Number(data.price).toLocaleString("en-IN")}`;
+    document.getElementById("result-crop-name").textContent=crop.toUpperCase();
+    const src=data.source==="model"?t.sourceModel:data.source==="live"?t.sourceLive:t.sourceUnknown;
+    document.getElementById("result-source").textContent=`📡 ${src}`;
+    const params=new URLSearchParams({crop,price:data.price,source:data.source,rainfall,temperature,humidity,state,lang:currentLang});
+    document.getElementById("dashboard-link").href=`result.html?${params}`;
+    document.getElementById("result-card").style.display="block";
+  }catch{
+    showError("Cannot connect to backend. Run: python app.py");
+  }finally{
+    btn.disabled=false;btnText.style.display="inline";spinner.style.display="none";
+  }
+}
+
+function showError(msg){document.getElementById("error-msg").textContent=msg;}
+function clearError(){document.getElementById("error-msg").textContent="";}
+</script>
+</body>
+</html>

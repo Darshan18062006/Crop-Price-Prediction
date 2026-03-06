@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crop Price Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&family=Noto+Sans+Devanagari:wght@400;600&family=Tiro+Kannada&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg:#0f1a0f; --card:#162016; --border:#2a3d2a;
+      --green:#4caf50; --green-light:#81c784; --green-dim:#2e7d32;
+      --gold:#ffd54f; --text:#e8f5e9; --muted:#7a9e7a;
+      --red:#ef5350; --blue:#90caf9;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 20px;}
+    .wrapper{max-width:860px;margin:0 auto;}
+    .header{text-align:center;margin-bottom:32px;animation:fadeDown 0.5s ease both;}
+    .header h1{font-family:'Playfair Display',serif;font-size:2.2rem;}
+    .header h1 span{color:var(--green-light);}
+    .source-badge{display:inline-block;margin-top:6px;margin-left:8px;font-size:0.68rem;padding:3px 10px;border-radius:20px;font-weight:500;letter-spacing:1px;vertical-align:middle;}
+    .source-badge.live{background:rgba(255,213,79,0.15);color:var(--gold);border:1px solid rgba(255,213,79,0.3);}
+    .source-badge.model{background:rgba(76,175,80,0.1);color:var(--green);border:1px solid rgba(76,175,80,0.2);}
+    .source-badge.fallback{background:rgba(144,202,249,0.12);color:var(--blue);border:1px solid rgba(144,202,249,0.3);}
+    .crop-badge{display:inline-block;margin-top:8px;background:var(--green-dim);color:#fff;font-size:0.72rem;font-weight:500;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:20px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px 28px;margin-bottom:18px;}
+    .today-card{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;animation:fadeUp 0.5s ease 0.1s both;}
+    .label{font-size:0.68rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:6px;}
+    .price-big{font-family:'Playfair Display',serif;font-size:2.8rem;color:var(--green-light);line-height:1;}
+    .price-big span{font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--muted);margin-left:6px;}
+    .trend-pill{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+    .tag{font-size:0.75rem;padding:4px 14px;border-radius:20px;font-weight:500;}
+    .tag.up{background:rgba(76,175,80,0.15);color:var(--green);}
+    .tag.down{background:rgba(244,67,54,0.15);color:var(--red);}
+    .tag.flat{background:rgba(255,213,79,0.15);color:var(--gold);}
+    .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;animation:fadeUp 0.5s ease 0.15s both;}
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+    .stat-val{font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:4px;}
+    .stat-lbl{font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);}
+    .chart-card{animation:fadeUp 0.5s ease 0.2s both;}
+    .card-title{font-size:0.68rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:18px;display:flex;justify-content:space-between;}
+    .weeks-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;animation:fadeUp 0.5s ease 0.25s both;}
+    .week-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 10px;text-align:center;}
+    .wk-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+    .wk-price{font-family:'Playfair Display',serif;font-size:1.1rem;}
+    .wk-change{font-size:0.72rem;margin-top:4px;}
+    .ai-section{animation:fadeUp 0.5s ease 0.35s both;}
+    .verdict-banner{display:flex;align-items:center;gap:16px;padding:20px 24px;border-radius:12px;margin-bottom:20px;}
+    .verdict-banner.sell-now{background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.3);}
+    .verdict-banner.wait{background:rgba(255,213,79,0.10);border:1px solid rgba(255,213,79,0.3);}
+    .verdict-banner.partial{background:rgba(33,150,243,0.10);border:1px solid rgba(33,150,243,0.3);}
+    .verdict-icon{font-size:2.4rem;line-height:1;}
+    .verdict-text .verdict-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:4px;}
+    .verdict-text .verdict-main{font-family:"Playfair Display",serif;font-size:1.8rem;}
+    .verdict-text .verdict-main.sell-now{color:var(--green-light);}
+    .verdict-text .verdict-main.wait{color:var(--gold);}
+    .verdict-text .verdict-main.partial{color:#64b5f6;}
+    .verdict-meta{margin-left:auto;text-align:right;}
+    .verdict-meta .vm-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:4px;}
+    .verdict-meta .vm-val{font-size:0.9rem;color:var(--text);}
+    .ai-summary{font-size:0.95rem;line-height:1.7;color:var(--text);margin-bottom:20px;padding:16px 20px;background:rgba(255,255,255,0.03);border-radius:10px;border-left:3px solid var(--green-dim);}
+    .ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+    .ai-box{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px;}
+    .ai-box-title{font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+    .ai-list{list-style:none;display:flex;flex-direction:column;gap:7px;}
+    .ai-list li{font-size:0.84rem;line-height:1.5;display:flex;gap:8px;}
+    .ai-list li::before{content:"→";color:var(--green);flex-shrink:0;}
+    .ai-list.risk li::before{content:"⚠";color:var(--gold);}
+    .best-window-bar{display:flex;justify-content:space-between;align-items:center;background:rgba(76,175,80,0.08);border:1px solid rgba(76,175,80,0.2);border-radius:10px;padding:14px 18px;margin-bottom:14px;}
+    .bw-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);}
+    .bw-val{font-family:"Playfair Display",serif;font-size:1.1rem;color:var(--green-light);}
+    .bw-price{font-family:"Playfair Display",serif;font-size:1.3rem;color:var(--gold);}
+    .storage-tip{font-size:0.82rem;color:var(--muted);padding:12px 16px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);display:flex;gap:8px;align-items:flex-start;}
+    .ai-loading{text-align:center;padding:40px 20px;color:var(--muted);}
+    .ai-spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--green-light);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;}
+    .confidence-badge{display:inline-block;font-size:0.68rem;padding:3px 10px;border-radius:20px;font-weight:500;text-transform:uppercase;letter-spacing:1px;}
+    .confidence-badge.High{background:rgba(76,175,80,0.15);color:var(--green);}
+    .confidence-badge.Medium{background:rgba(255,213,79,0.15);color:var(--gold);}
+    .confidence-badge.Low{background:rgba(244,67,54,0.15);color:var(--red);}
+    .mandi-section{animation:fadeUp 0.5s ease 0.3s both;}
+    .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+    .section-title{font-size:0.68rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);}
+    .state-badge{font-size:0.72rem;background:rgba(76,175,80,0.1);border:1px solid var(--border);color:var(--green-light);padding:3px 10px;border-radius:20px;}
+    .mandi-table{width:100%;border-collapse:collapse;}
+    .mandi-table th{font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+    .mandi-table td{padding:12px 12px;font-size:0.88rem;border-bottom:1px solid rgba(42,61,42,0.5);}
+    .mandi-table tr:last-child td{border-bottom:none;}
+    .mandi-table tr:hover td{background:rgba(76,175,80,0.04);}
+    .price-cell{font-family:'Playfair Display',serif;font-size:1rem;color:var(--green-light);}
+    .range-cell{font-size:0.78rem;color:var(--muted);}
+    .cheapest-badge{display:inline-block;background:rgba(76,175,80,0.15);color:var(--green);font-size:0.62rem;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:10px;margin-left:6px;}
+    .date-cell{font-size:0.75rem;color:var(--muted);}
+    .mandi-loading{text-align:center;padding:30px;color:var(--muted);font-size:0.85rem;}
+    .mandi-spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px;}
+    .mandi-error{text-align:center;padding:20px;color:var(--muted);font-size:0.82rem;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-size:0.85rem;transition:color 0.2s;animation:fadeUp 0.5s ease 0.4s both;}
+    .back-link:hover{color:var(--green-light);}
+    .news-section{animation:fadeUp 0.5s ease 0.55s both;}
+    .news-item{padding:12px 0;border-bottom:1px solid var(--border);}
+    .news-item:last-child{border-bottom:none;}
+    .news-title{color:var(--green-light);text-decoration:none;font-size:0.92rem;line-height:1.4;display:block;margin-bottom:4px;}
+    .news-title:hover{text-decoration:underline;}
+    .news-meta{display:flex;gap:8px;font-size:0.75rem;color:var(--muted);}
+    .news-source{color:var(--green);}
+    .news-error{color:var(--muted);font-size:0.85rem;margin-bottom:12px;}
+    /* ── Weather & Supply ── */
+    /* ── Page loader ── */
+    #page-loading{text-align:center;padding:80px 0;color:var(--muted);}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
+    #content{display:none;}
+    @keyframes spin    {to{transform:rotate(360deg);}}
+    @keyframes fadeDown{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:none;}}
+    @keyframes fadeUp  {from{opacity:0;transform:translateY(16px); }to{opacity:1;transform:none;}}
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <div id="page-loading"><div class="spinner"></div><p id="loading-text">Building forecast…</p></div>
+  <div id="content">
+    <div class="header">
+      <h1>🌾 <span id="crop-title"></span> <span id="dashboard-word">Dashboard</span></h1>
+      <div class="crop-badge" id="crop-badge"></div>
+      <div><span class="source-badge" id="source-badge"></span></div>
+    </div>
+    <div class="card today-card">
+      <div>
+        <div class="label" id="lbl-today-price">Today's Predicted Price</div>
+        <div class="price-big" id="today-price">—</div>
+      </div>
+      <div class="trend-pill">
+        <div class="label" id="lbl-30day-trend">30-Day Trend</div>
+        <div class="tag" id="trend-tag">—</div>
+        <div style="font-size:0.78rem;color:var(--muted)" id="trend-range">—</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="stat-min">—</div><div class="stat-lbl" id="lbl-30day-low">30-Day Low</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-max">—</div><div class="stat-lbl" id="lbl-30day-high">30-Day High</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-avg">—</div><div class="stat-lbl" id="lbl-30day-avg">30-Day Avg</div></div>
+    </div>
+    <div class="card chart-card">
+      <div class="card-title">
+        <span id="lbl-forecast-title">📈 30-Day Price Forecast</span>
+        <span style="font-size:0.7rem;color:var(--muted)" id="lbl-forecast-legend">🟡 Today — Forecast line</span>
+      </div>
+      <canvas id="forecastChart" height="90"></canvas>
+    </div>
+    <div class="weeks-grid" id="weeks-grid"></div>
+
+    <!-- ── Weather & Supply Card ── -->
+    <div class="card mandi-section">
+      <div class="section-header">
+        <div class="section-title" id="lbl-mandi-title">📍 Nearby Mandi Prices</div>
+        <div class="state-badge" id="mandi-state-badge">—</div>
+      </div>
+      <div id="mandi-content">
+        <div class="mandi-loading"><div class="mandi-spinner"></div><span id="lbl-mandi-loading">Fetching live mandi prices…</span></div>
+      </div>
+    </div>
+    <div class="card ai-section">
+      <div class="section-header">
+        <div class="section-title" id="lbl-ai-title">🤖 AI Sell Recommendation</div>
+        <div id="ai-confidence-badge"></div>
+      </div>
+      <div id="ai-content">
+        <div class="ai-loading"><div class="ai-spinner"></div><p id="lbl-ai-loading">Analysing forecast, weather &amp; market trends…</p></div>
+      </div>
+    </div>
+
+    <!-- ── Agriculture News Card ── -->
+    <div class="card news-section">
+      <div class="section-header">
+        <div class="section-title">📰 AGRICULTURE NEWS</div>
+        <span id="news-crop-badge" class="trend-tag tag-stable"></span>
+      </div>
+      <div id="news-content"><div class="ai-loading"><div class="ai-spinner"></div><p>Loading news…</p></div></div>
+    </div>
+
+    <a href="index.html" class="back-link" id="back-link">← Predict another crop</a>
+  </div>
+</div>
+
+<script>
+const T = {
+  en:{ dashboard:"Dashboard",loading:"Building forecast…",today_price:"Today's Predicted Price",quintal:"/quintal",trend_30:"30-Day Trend",low_30:"30-Day Low",high_30:"30-Day High",avg_30:"30-Day Avg",forecast_title:"📈 30-Day Price Forecast",forecast_legend:"🟡 Today — Forecast line",mandi_title:"📍 Nearby Mandi Prices",mandi_loading:"Fetching live mandi prices…",mandi_error:"Could not fetch mandi prices. Is Flask running?",mandi_none:"No mandi data found",mandi_source:"Source: data.gov.in · Agmarknet",mandi_markets:"markets found",ai_title:"🤖 AI Sell Recommendation",ai_loading:"Analysing 30-day forecast, weather & market trends…",ai_error:"AI recommendation unavailable. Make sure Flask is running.",ai_recommendation:"AI Recommendation",ai_best_window:"Best Window",ai_best_sell:"Best Sell Window",ai_expected:"Expected Price",ai_why:"✅ Why this advice",ai_risks:"⚠️ Risks to watch",ai_storage:"Storage tip",confidence:"Confidence",vs_prediction:"vs prediction",cheapest:"Cheapest",back:"← Predict another crop",rising:"↑ Rising",falling:"↓ Falling",stable:"→ Stable",week:"Week",source_live:"⚡ Live Agmarknet Price",source_model:"🤖 ML Model Price",source_fallback:"📊 Avg Mandi Price",mandi_header_market:"Market / Mandi",mandi_header_price:"Modal Price",mandi_header_range:"Range (Min–Max)",mandi_header_date:"Date",sell_now:"SELL NOW",wait:"WAIT",sell_partial:"SELL PARTIAL",
+    ws_title:"🌦️ Weather & Supply Data",ws_loading:"Fetching weather & supply data…",ws_weather:"Live Weather",ws_supply:"Market Supply",ws_temp:"Temperature",ws_humidity:"Humidity",ws_rain:"Rainfall",ws_wind:"Wind Speed",ws_supply_level:"Supply Level",ws_arrivals:"Mandi Arrivals",ws_markets:"Active Markets",ws_impact:"Price Impact",ws_high:"High",ws_medium:"Medium",ws_low:"Low",
+    impact_hotdry:"🌡️ High temp + low rain → expect price increase due to crop stress",
+    impact_rain:"🌧️ Good rainfall → healthy supply expected, prices may soften",
+    impact_supply_high:"📦 High supply in mandis → downward price pressure",
+    impact_supply_low:"📉 Low supply in mandis → prices likely to rise",
+    impact_normal:"⚖️ Normal weather & supply conditions — prices expected stable" },
+  hi:{ dashboard:"डैशबोर्ड",loading:"पूर्वानुमान बन रहा है…",today_price:"आज की अनुमानित कीमत",quintal:"/क्विंटल",trend_30:"30 दिन का रुझान",low_30:"30 दिन न्यूनतम",high_30:"30 दिन अधिकतम",avg_30:"30 दिन औसत",forecast_title:"📈 30 दिन का मूल्य पूर्वानुमान",forecast_legend:"🟡 आज — पूर्वानुमान रेखा",mandi_title:"📍 नजदीकी मंडी कीमतें",mandi_loading:"लाइव मंडी कीमतें लाई जा रही हैं…",mandi_error:"मंडी कीमतें नहीं मिलीं।",mandi_none:"कोई मंडी डेटा नहीं",mandi_source:"स्रोत: data.gov.in · Agmarknet",mandi_markets:"मंडियाँ मिलीं",ai_title:"🤖 AI बिक्री सलाह",ai_loading:"30 दिन का पूर्वानुमान, मौसम और बाज़ार विश्लेषण…",ai_error:"AI सलाह उपलब्ध नहीं।",ai_recommendation:"AI सलाह",ai_best_window:"सर्वोत्तम समय",ai_best_sell:"बेचने का सर्वोत्तम समय",ai_expected:"अपेक्षित कीमत",ai_why:"✅ यह सलाह क्यों",ai_risks:"⚠️ ध्यान देने योग्य जोखिम",ai_storage:"भंडारण सुझाव",confidence:"विश्वास",vs_prediction:"अनुमान से",cheapest:"सबसे सस्ता",back:"← दूसरी फसल देखें",rising:"↑ बढ़ रहा है",falling:"↓ गिर रहा है",stable:"→ स्थिर",week:"सप्ताह",source_live:"⚡ लाइव Agmarknet कीमत",source_model:"🤖 ML मॉडल कीमत",source_fallback:"📊 औसत मंडी कीमत",mandi_header_market:"मंडी / बाज़ार",mandi_header_price:"मोडल कीमत",mandi_header_range:"दायरा (न्यून–अधि)",mandi_header_date:"तारीख",sell_now:"अभी बेचें",wait:"प्रतीक्षा करें",sell_partial:"आंशिक बेचें",
+    ws_title:"🌦️ मौसम और आपूर्ति डेटा",ws_loading:"मौसम और आपूर्ति डेटा लाया जा रहा है…",ws_weather:"लाइव मौसम",ws_supply:"बाज़ार आपूर्ति",ws_temp:"तापमान",ws_humidity:"आर्द्रता",ws_rain:"वर्षा",ws_wind:"हवा की गति",ws_supply_level:"आपूर्ति स्तर",ws_arrivals:"मंडी आवक",ws_markets:"सक्रिय मंडियाँ",ws_impact:"कीमत प्रभाव",ws_high:"उच्च",ws_medium:"मध्यम",ws_low:"कम",
+    impact_hotdry:"🌡️ अधिक गर्मी + कम बारिश → फसल तनाव के कारण कीमत बढ़ सकती है",
+    impact_rain:"🌧️ अच्छी बारिश → अच्छी आपूर्ति की संभावना, कीमतें नरम हो सकती हैं",
+    impact_supply_high:"📦 मंडी में अधिक आपूर्ति → कीमतों पर दबाव",
+    impact_supply_low:"📉 मंडी में कम आपूर्ति → कीमतें बढ़ने की संभावना",
+    impact_normal:"⚖️ सामान्य मौसम और आपूर्ति — कीमतें स्थिर रहने की संभावना" },
+  kn:{ dashboard:"ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",loading:"ಮುನ್ಸೂಚನೆ ತಯಾರಾಗುತ್ತಿದೆ…",today_price:"ಇಂದಿನ ಅಂದಾಜು ಬೆಲೆ",quintal:"/ಕ್ವಿಂಟಾಲ್",trend_30:"30 ದಿನದ ಪ್ರವೃತ್ತಿ",low_30:"30 ದಿನ ಕನಿಷ್ಠ",high_30:"30 ದಿನ ಗರಿಷ್ಠ",avg_30:"30 ದಿನ ಸರಾಸರಿ",forecast_title:"📈 30 ದಿನದ ಬೆಲೆ ಮುನ್ಸೂಚನೆ",forecast_legend:"🟡 ಇಂದು — ಮುನ್ಸೂಚನೆ ರೇಖೆ",mandi_title:"📍 ಹತ್ತಿರದ ಮಂಡಿ ಬೆಲೆಗಳು",mandi_loading:"ನೇರ ಮಂಡಿ ಬೆಲೆಗಳನ್ನು ತರಲಾಗುತ್ತಿದೆ…",mandi_error:"ಮಂಡಿ ಬೆಲೆಗಳು ಸಿಗಲಿಲ್ಲ.",mandi_none:"ಮಂಡಿ ಮಾಹಿತಿ ಸಿಗಲಿಲ್ಲ",mandi_source:"ಮೂಲ: data.gov.in · Agmarknet",mandi_markets:"ಮಂಡಿಗಳು ಸಿಕ್ಕಿವೆ",ai_title:"🤖 AI ಮಾರಾಟ ಸಲಹೆ",ai_loading:"30 ದಿನದ ಮುನ್ಸೂಚನೆ, ಹವಾಮಾನ ಮತ್ತು ಮಾರುಕಟ್ಟೆ ವಿಶ್ಲೇಷಣೆ…",ai_error:"AI ಸಲಹೆ ಲಭ್ಯವಿಲ್ಲ.",ai_recommendation:"AI ಸಲಹೆ",ai_best_window:"ಉತ್ತಮ ಸಮಯ",ai_best_sell:"ಮಾರಾಟಕ್ಕೆ ಉತ್ತಮ ಸಮಯ",ai_expected:"ನಿರೀಕ್ಷಿತ ಬೆಲೆ",ai_why:"✅ ಈ ಸಲಹೆ ಏಕೆ",ai_risks:"⚠️ ಗಮನಿಸಬೇಕಾದ ಅಪಾಯಗಳು",ai_storage:"ಸಂಗ್ರಹ ಸಲಹೆ",confidence:"ವಿಶ್ವಾಸ",vs_prediction:"ಅಂದಾಜಿಗೆ ಹೋಲಿಕೆ",cheapest:"ಅಗ್ಗ",back:"← ಮತ್ತೊಂದು ಬೆಳೆ ನೋಡಿ",rising:"↑ ಏರುತ್ತಿದೆ",falling:"↓ ಇಳಿಯುತ್ತಿದೆ",stable:"→ ಸ್ಥಿರ",week:"ವಾರ",source_live:"⚡ ನೇರ Agmarknet ಬೆಲೆ",source_model:"🤖 ML ಮಾದರಿ ಬೆಲೆ",source_fallback:"📊 ಸರಾಸರಿ ಮಂಡಿ ಬೆಲೆ",mandi_header_market:"ಮಂಡಿ / ಮಾರುಕಟ್ಟೆ",mandi_header_price:"ಮೋಡಲ್ ಬೆಲೆ",mandi_header_range:"ವ್ಯಾಪ್ತಿ (ಕನಿಷ್ಠ–ಗರಿಷ್ಠ)",mandi_header_date:"ದಿನಾಂಕ",sell_now:"ಈಗ ಮಾರಿ",wait:"ಕಾಯಿರಿ",sell_partial:"ಭಾಗ ಮಾರಿ",
+    ws_title:"🌦️ ಹವಾಮಾನ ಮತ್ತು ಪೂರೈಕೆ ಮಾಹಿತಿ",ws_loading:"ಹವಾಮಾನ ಮತ್ತು ಪೂರೈಕೆ ಮಾಹಿತಿ ತರಲಾಗುತ್ತಿದೆ…",ws_weather:"ನೇರ ಹವಾಮಾನ",ws_supply:"ಮಾರುಕಟ್ಟೆ ಪೂರೈಕೆ",ws_temp:"ತಾಪಮಾನ",ws_humidity:"ತೇವಾಂಶ",ws_rain:"ಮಳೆ",ws_wind:"ಗಾಳಿ ವೇಗ",ws_supply_level:"ಪೂರೈಕೆ ಮಟ್ಟ",ws_arrivals:"ಮಂಡಿ ಆಗಮನ",ws_markets:"ಸಕ್ರಿಯ ಮಂಡಿಗಳು",ws_impact:"ಬೆಲೆ ಪ್ರಭಾವ",ws_high:"ಹೆಚ್ಚು",ws_medium:"ಮಧ್ಯಮ",ws_low:"ಕಡಿಮೆ",
+    impact_hotdry:"🌡️ ಅಧಿಕ ತಾಪ + ಕಡಿಮೆ ಮಳೆ → ಬೆಳೆ ಒತ್ತಡದಿಂದ ಬೆಲೆ ಹೆಚ್ಚಾಗಬಹುದು",
+    impact_rain:"🌧️ ಉತ್ತಮ ಮಳೆ → ಉತ್ತಮ ಪೂರೈಕೆ ನಿರೀಕ್ಷೆ, ಬೆಲೆ ಕಡಿಮೆಯಾಗಬಹುದು",
+    impact_supply_high:"📦 ಮಂಡಿಯಲ್ಲಿ ಹೆಚ್ಚು ಪೂರೈಕೆ → ಬೆಲೆ ಒತ್ತಡ",
+    impact_supply_low:"📉 ಮಂಡಿಯಲ್ಲಿ ಕಡಿಮೆ ಪೂರೈಕೆ → ಬೆಲೆ ಏರಿಕೆ ಸಾಧ್ಯತೆ",
+    impact_normal:"⚖️ ಸಾಮಾನ್ಯ ಹವಾಮಾನ ಮತ್ತು ಪೂರೈಕೆ — ಬೆಲೆ ಸ್ಥಿರವಾಗಿರಬಹುದು" },
+  te:{ dashboard:"డాష్‌బోర్డ్",loading:"అంచనా తయారవుతోంది…",today_price:"నేటి అంచనా ధర",quintal:"/క్వింటాల్",trend_30:"30 రోజుల ధోరణి",low_30:"30 రోజుల కనిష్ఠ",high_30:"30 రోజుల గరిష్ఠ",avg_30:"30 రోజుల సగటు",forecast_title:"📈 30 రోజుల ధర అంచనా",forecast_legend:"🟡 ఈరోజు — అంచనా రేఖ",mandi_title:"📍 సమీప మండి ధరలు",mandi_loading:"లైవ్ మండి ధరలు తెస్తోంది…",mandi_error:"మండి ధరలు దొరకలేదు.",mandi_none:"మండి డేటా లేదు",mandi_source:"మూలం: data.gov.in · Agmarknet",mandi_markets:"మండులు దొరికాయి",ai_title:"🤖 AI అమ్మకం సలహా",ai_loading:"30 రోజుల అంచనా, వాతావరణం & మార్కెట్ విశ్లేషణ…",ai_error:"AI సలహా అందుబాటులో లేదు.",ai_recommendation:"AI సలహా",ai_best_window:"ఉత్తమ సమయం",ai_best_sell:"అమ్మకానికి ఉత్తమ సమయం",ai_expected:"ఆశించిన ధర",ai_why:"✅ ఈ సలహా ఎందుకు",ai_risks:"⚠️ రిస్కులు",ai_storage:"నిల్వ సూచన",confidence:"నమ్మకం",vs_prediction:"అంచనాతో",cheapest:"చౌక",back:"← మరో పంట చూడండి",rising:"↑ పెరుగుతోంది",falling:"↓ తగ్గుతోంది",stable:"→ స్థిరం",week:"వారం",source_live:"⚡ లైవ్ Agmarknet ధర",source_model:"🤖 ML మోడల్ ధర",source_fallback:"📊 సగటు మండి ధర",mandi_header_market:"మండి / మార్కెట్",mandi_header_price:"మోడల్ ధర",mandi_header_range:"శ్రేణి (కనిష్ఠ–గరిష్ఠ)",mandi_header_date:"తేదీ",sell_now:"ఇప్పుడు అమ్మండి",wait:"వేచి ఉండండి",sell_partial:"పాక్షికంగా అమ్మండి" },
+  ta:{ dashboard:"டாஷ்போர்டு",loading:"முன்னறிவிப்பு உருவாகிறது…",today_price:"இன்றைய கணிக்கப்பட்ட விலை",quintal:"/குவிண்டால்",trend_30:"30 நாள் போக்கு",low_30:"30 நாள் குறைந்தபட்சம்",high_30:"30 நாள் அதிகபட்சம்",avg_30:"30 நாள் சராசரி",forecast_title:"📈 30 நாள் விலை முன்னறிவிப்பு",forecast_legend:"🟡 இன்று — முன்னறிவிப்பு கோடு",mandi_title:"📍 அருகில் உள்ள மண்டி விலைகள்",mandi_loading:"நேரடி மண்டி விலைகள் வருகின்றன…",mandi_error:"மண்டி விலைகள் கிடைக்கவில்லை.",mandi_none:"மண்டி தரவு இல்லை",mandi_source:"ஆதாரம்: data.gov.in · Agmarknet",mandi_markets:"சந்தைகள் கண்டறியப்பட்டன",ai_title:"🤖 AI விற்பனை பரிந்துரை",ai_loading:"30 நாள் முன்னறிவிப்பு, வானிலை & சந்தை பகுப்பாய்வு…",ai_error:"AI பரிந்துரை கிடைக்கவில்லை.",ai_recommendation:"AI பரிந்துரை",ai_best_window:"சிறந்த நேரம்",ai_best_sell:"விற்பனைக்கு சிறந்த நேரம்",ai_expected:"எதிர்பார்க்கப்படும் விலை",ai_why:"✅ இந்த பரிந்துரை ஏன்",ai_risks:"⚠️ அபாயங்கள்",ai_storage:"சேமிப்பு குறிப்பு",confidence:"நம்பிக்கை",vs_prediction:"கணிப்புடன்",cheapest:"மலிவான",back:"← மற்றொரு பயிர் கணிக்க",rising:"↑ உயர்கிறது",falling:"↓ குறைகிறது",stable:"→ நிலையானது",week:"வாரம்",source_live:"⚡ நேரடி Agmarknet விலை",source_model:"🤖 ML மாதிரி விலை",source_fallback:"📊 சராசரி மண்டி விலை",mandi_header_market:"மண்டி / சந்தை",mandi_header_price:"மோடல் விலை",mandi_header_range:"வரம்பு (குறை–அதிக)",mandi_header_date:"தேதி",sell_now:"இப்போது விற்கவும்",wait:"காத்திருங்கள்",sell_partial:"பகுதியாக விற்கவும்" },
+  ml:{ dashboard:"ഡാഷ്‌ബോർഡ്",loading:"പ്രവചനം തയ്യാറാകുന്നു…",today_price:"ഇന്നത്തെ അനുമാനിക്കപ്പെട്ട വില",quintal:"/ക്വിന്റൽ",trend_30:"30 ദിവസത്തെ പ്രവണത",low_30:"30 ദിവസ മിനിമം",high_30:"30 ദിവസ മാക്സിമം",avg_30:"30 ദിവസ ശരാശരി",forecast_title:"📈 30 ദിവസത്തെ വില പ്രവചനം",forecast_legend:"🟡 ഇന്ന് — പ്രവചന രേഖ",mandi_title:"📍 സമീപ മണ്ടി വിലകൾ",mandi_loading:"തൽസമയ മണ്ടി വിലകൾ ലഭ്യമാക്കുന്നു…",mandi_error:"മണ്ടി വിലകൾ ലഭിച്ചില്ല.",mandi_none:"മണ്ടി ഡേറ്റ ലഭ്യമല്ല",mandi_source:"ഉറവിടം: data.gov.in · Agmarknet",mandi_markets:"മണ്ടികൾ കണ്ടെത്തി",ai_title:"🤖 AI വിൽക്കൽ നിർദ്ദേശം",ai_loading:"30 ദിവസ പ്രവചനം, കാലാവസ്ഥ & വിപണി വിശകലനം…",ai_error:"AI നിർദ്ദേശം ലഭ്യമല്ല.",ai_recommendation:"AI നിർദ്ദേശം",ai_best_window:"ഏറ്റവും നല്ല സമയം",ai_best_sell:"വിൽക്കാൻ ഏറ്റവും നല്ല സമയം",ai_expected:"പ്രതീക്ഷിക്കുന്ന വില",ai_why:"✅ ഈ നിർദ്ദേശം എന്തുകൊണ്ട്",ai_risks:"⚠️ അപകടങ്ങൾ",ai_storage:"സൂക്ഷിക്കൽ നിർദ്ദേശം",confidence:"ആത്മവിശ്വാസം",vs_prediction:"പ്രവചനവുമായി",cheapest:"ഏറ്റവും വില കുറവ്",back:"← മറ്റൊരു വിള കണ്ടെത്തുക",rising:"↑ ഉയരുന്നു",falling:"↓ കുറയുന്നു",stable:"→ സ്ഥിരം",week:"ആഴ്ച",source_live:"⚡ തൽസമയ Agmarknet വില",source_model:"🤖 ML മോഡൽ വില",source_fallback:"📊 ശരാശരി മണ്ടി വില",mandi_header_market:"മണ്ടി / വിപണി",mandi_header_price:"മോഡൽ വില",mandi_header_range:"പരിധി (കുറഞ്ഞ–കൂടിയ)",mandi_header_date:"തീയതി",sell_now:"ഇപ്പോൾ വിൽക്കുക",wait:"കാത്തിരിക്കുക",sell_partial:"ഭാഗികമായി വിൽക്കുക" },
+  mr:{ dashboard:"डॅशबोर्ड",loading:"अंदाज तयार होत आहे…",today_price:"आजची अंदाजित किंमत",quintal:"/क्विंटल",trend_30:"30 दिवसांचा कल",low_30:"30 दिवस किमान",high_30:"30 दिवस कमाल",avg_30:"30 दिवस सरासरी",forecast_title:"📈 30 दिवसांचा किंमत अंदाज",forecast_legend:"🟡 आज — अंदाज रेषा",mandi_title:"📍 जवळच्या मंडई किंमती",mandi_loading:"थेट मंडई किंमती आणल्या जात आहेत…",mandi_error:"मंडई किंमती मिळाल्या नाहीत.",mandi_none:"मंडई डेटा उपलब्ध नाही",mandi_source:"स्रोत: data.gov.in · Agmarknet",mandi_markets:"मंडया सापडल्या",ai_title:"🤖 AI विक्री सल्ला",ai_loading:"30 दिवसांचा अंदाज, हवामान आणि बाजार विश्लेषण…",ai_error:"AI सल्ला उपलब्ध नाही.",ai_recommendation:"AI सल्ला",ai_best_window:"सर्वोत्तम वेळ",ai_best_sell:"विक्रीसाठी सर्वोत्तम वेळ",ai_expected:"अपेक्षित किंमत",ai_why:"✅ हा सल्ला का",ai_risks:"⚠️ धोके",ai_storage:"साठवणूक सूचना",confidence:"विश्वास",vs_prediction:"अंदाजाशी",cheapest:"स्वस्त",back:"← दुसरे पीक पहा",rising:"↑ वाढत आहे",falling:"↓ घसरत आहे",stable:"→ स्थिर",week:"आठवडा",source_live:"⚡ थेट Agmarknet किंमत",source_model:"🤖 ML मॉडेल किंमत",source_fallback:"📊 सरासरी मंडई किंमत",mandi_header_market:"मंडई / बाजार",mandi_header_price:"मोडल किंमत",mandi_header_range:"श्रेणी (किमान–कमाल)",mandi_header_date:"तारीख",sell_now:"आत्ता विका",wait:"थांबा",sell_partial:"अंशतः विका" },
+  gu:{ dashboard:"ડેશબોર્ડ",loading:"અંદાજ તૈયાર થઈ રહ્યો છે…",today_price:"આજની અંદાજિત કિંમત",quintal:"/ક્વિન્ટલ",trend_30:"30 દિવસનો ટ્રેન્ડ",low_30:"30 દિવસ ન્યૂનતમ",high_30:"30 દિવસ મહત્તમ",avg_30:"30 દિવસ સરેરાશ",forecast_title:"📈 30 દિવસનો ભાવ અંદાજ",forecast_legend:"🟡 આજ — અંદાજ રેખા",mandi_title:"📍 નજીકની મંડી કિંમતો",mandi_loading:"લાઇવ મંડી કિંમતો લવાઈ રહી છે…",mandi_error:"મંડી કિંમતો મળી નહીં.",mandi_none:"મંડી ડેટા મળ્યો નહીં",mandi_source:"સ્ત્રોત: data.gov.in · Agmarknet",mandi_markets:"મંડીઓ મળી",ai_title:"🤖 AI વેચાણ સલાહ",ai_loading:"30 દિવસ અંદાજ, હવામાન અને બજાર વિશ્લેષણ…",ai_error:"AI સલાહ ઉપલબ્ધ નથી.",ai_recommendation:"AI સલાહ",ai_best_window:"શ્રેષ્ઠ સમય",ai_best_sell:"વેચાણ માટે શ્રેષ્ઠ સમય",ai_expected:"અપેક્ષિત કિંમત",ai_why:"✅ આ સલાહ કેમ",ai_risks:"⚠️ જોખમો",ai_storage:"સંગ્રહ સૂચના",confidence:"વિશ્વાસ",vs_prediction:"અંદાજ સામે",cheapest:"સસ્તું",back:"← બીજો પાક જુઓ",rising:"↑ વધી રહ્યું છે",falling:"↓ ઘટી રહ્યું છે",stable:"→ સ્થિર",week:"અઠવાડિયું",source_live:"⚡ લાઇવ Agmarknet ભાવ",source_model:"🤖 ML મોડેલ ભાવ",source_fallback:"📊 સરેરાશ મંડી ભાવ",mandi_header_market:"મંડી / બજાર",mandi_header_price:"મોડલ કિંમત",mandi_header_range:"શ્રેણી (ન્યૂન–મહત્તમ)",mandi_header_date:"તારીખ",sell_now:"હવે વેચો",wait:"રાહ જુઓ",sell_partial:"આંશિક વેચો" },
+  pa:{ dashboard:"ਡੈਸ਼ਬੋਰਡ",loading:"ਅਨੁਮਾਨ ਤਿਆਰ ਹੋ ਰਿਹਾ ਹੈ…",today_price:"ਅੱਜ ਦੀ ਅਨੁਮਾਨਿਤ ਕੀਮਤ",quintal:"/ਕੁਇੰਟਲ",trend_30:"30 ਦਿਨਾਂ ਦਾ ਰੁਝਾਨ",low_30:"30 ਦਿਨ ਘੱਟੋ-ਘੱਟ",high_30:"30 ਦਿਨ ਵੱਧ ਤੋਂ ਵੱਧ",avg_30:"30 ਦਿਨ ਔਸਤ",forecast_title:"📈 30 ਦਿਨਾਂ ਦਾ ਕੀਮਤ ਅਨੁਮਾਨ",forecast_legend:"🟡 ਅੱਜ — ਅਨੁਮਾਨ ਰੇਖਾ",mandi_title:"📍 ਨੇੜੇ ਦੀਆਂ ਮੰਡੀ ਕੀਮਤਾਂ",mandi_loading:"ਲਾਈਵ ਮੰਡੀ ਕੀਮਤਾਂ ਲਿਆਂਦੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ…",mandi_error:"ਮੰਡੀ ਕੀਮਤਾਂ ਨਹੀਂ ਮਿਲੀਆਂ।",mandi_none:"ਮੰਡੀ ਡੇਟਾ ਨਹੀਂ ਮਿਲਿਆ",mandi_source:"ਸਰੋਤ: data.gov.in · Agmarknet",mandi_markets:"ਮੰਡੀਆਂ ਮਿਲੀਆਂ",ai_title:"🤖 AI ਵੇਚਣ ਦੀ ਸਲਾਹ",ai_loading:"30 ਦਿਨਾਂ ਦਾ ਅਨੁਮਾਨ, ਮੌਸਮ ਅਤੇ ਬਾਜ਼ਾਰ ਵਿਸ਼ਲੇਸ਼ਣ…",ai_error:"AI ਸਲਾਹ ਉਪਲਬਧ ਨਹੀਂ।",ai_recommendation:"AI ਸਲਾਹ",ai_best_window:"ਸਭ ਤੋਂ ਵਧੀਆ ਸਮਾਂ",ai_best_sell:"ਵੇਚਣ ਲਈ ਸਭ ਤੋਂ ਵਧੀਆ ਸਮਾਂ",ai_expected:"ਅਨੁਮਾਨਿਤ ਕੀਮਤ",ai_why:"✅ ਇਹ ਸਲਾਹ ਕਿਉਂ",ai_risks:"⚠️ ਖਤਰੇ",ai_storage:"ਸਟੋਰੇਜ ਸੁਝਾਅ",confidence:"ਵਿਸ਼ਵਾਸ",vs_prediction:"ਅਨੁਮਾਨ ਦੇ ਮੁਕਾਬਲੇ",cheapest:"ਸਭ ਤੋਂ ਸਸਤਾ",back:"← ਹੋਰ ਫ਼ਸਲ ਦੇਖੋ",rising:"↑ ਵੱਧ ਰਿਹਾ ਹੈ",falling:"↓ ਘੱਟ ਰਿਹਾ ਹੈ",stable:"→ ਸਥਿਰ",week:"ਹਫ਼ਤਾ",source_live:"⚡ ਲਾਈਵ Agmarknet ਕੀਮਤ",source_model:"🤖 ML ਮਾਡਲ ਕੀਮਤ",source_fallback:"📊 ਔਸਤ ਮੰਡੀ ਕੀਮਤ",mandi_header_market:"ਮੰਡੀ / ਬਾਜ਼ਾਰ",mandi_header_price:"ਮੋਡਲ ਕੀਮਤ",mandi_header_range:"ਰੇਂਜ (ਘੱਟ–ਵੱਧ)",mandi_header_date:"ਤਾਰੀਖ",sell_now:"ਹੁਣ ਵੇਚੋ",wait:"ਉਡੀਕ ਕਰੋ",sell_partial:"ਅੰਸ਼ਕ ਵੇਚੋ" },
+  or:{ dashboard:"ଡ୍ୟାଶ୍‌ବୋର୍ଡ",loading:"ଆଗ୍ରାହ ପ୍ରସ୍ତୁତ ହେଉଛି…",today_price:"ଆଜିର ଆଗ୍ରାହ ମୂଲ୍ୟ",quintal:"/କ୍ୱିଣ୍ଟାଲ",trend_30:"30 ଦିନ ଧାରା",low_30:"30 ଦିନ ସର୍ବନ୍ୟୂନ",high_30:"30 ଦିନ ସର୍ବାଧିକ",avg_30:"30 ଦିନ ହାରାହାରି",forecast_title:"📈 30 ଦିନ ମୂଲ୍ୟ ଆଗ୍ରାହ",forecast_legend:"🟡 ଆଜି — ଆଗ୍ରାହ ରେଖା",mandi_title:"📍 ନିକଟ ମଣ୍ଡି ମୂଲ୍ୟ",mandi_loading:"ସିଧା ମଣ୍ଡି ମୂଲ୍ୟ ଆଣୁଛି…",mandi_error:"ମଣ୍ଡି ମୂଲ୍ୟ ମିଳିଲା ନାହିଁ।",mandi_none:"ମଣ୍ଡି ତଥ୍ୟ ନାହିଁ",mandi_source:"ଉତ୍ସ: data.gov.in · Agmarknet",mandi_markets:"ମଣ୍ଡି ମିଳିଲା",ai_title:"🤖 AI ବିକ୍ରୟ ପରାମର୍ଶ",ai_loading:"30 ଦିନ ଆଗ୍ରାହ, ପାଣିପାଗ ଓ ବଜାର ବିଶ୍ଳେଷଣ…",ai_error:"AI ପରାମର୍ଶ ଉପଲବ୍ଧ ନାହିଁ।",ai_recommendation:"AI ପରାମର୍ଶ",ai_best_window:"ସର୍ବୋତ୍ତମ ସମୟ",ai_best_sell:"ବିକ୍ରୟ ପାଇଁ ସର୍ବୋତ୍ତମ ସମୟ",ai_expected:"ଆଶାୟୀ ମୂଲ୍ୟ",ai_why:"✅ ଏହି ପରାମର୍ଶ କାହିଁକି",ai_risks:"⚠️ ବିପଦ",ai_storage:"ସଂଗ୍ରହ ପରାମର୍ଶ",confidence:"ବିଶ୍ୱାସ",vs_prediction:"ଆଗ୍ରାହ ସହ",cheapest:"ସବୁଠୁ ସସ୍ତା",back:"← ଅନ୍ୟ ଫସଲ ଦେଖନ୍ତୁ",rising:"↑ ବଢ଼ୁଛି",falling:"↓ ଖସୁଛି",stable:"→ ସ୍ଥିର",week:"ସପ୍ତାହ",source_live:"⚡ ସିଧା Agmarknet ମୂଲ୍ୟ",source_model:"🤖 ML ମଡେଲ ମୂଲ୍ୟ",source_fallback:"📊 ହାରାହାରି ମଣ୍ଡି ମୂଲ୍ୟ",mandi_header_market:"ମଣ୍ଡି / ବଜାର",mandi_header_price:"ମୋଡାଲ ମୂଲ୍ୟ",mandi_header_range:"ପରିସର (ନ୍ୟୂନ–ଅଧିକ)",mandi_header_date:"ତାରିଖ",sell_now:"ବର୍ତ୍ତମାନ ବିକ୍ରୟ କରନ୍ତୁ",wait:"ଅପେକ୍ଷା କରନ୍ତୁ",sell_partial:"ଆଂଶିକ ବିକ୍ରୟ" },
+  bn:{ dashboard:"ড্যাশবোর্ড",loading:"পূর্বাভাস তৈরি হচ্ছে…",today_price:"আজকের অনুমানিত দাম",quintal:"/কুইন্টাল",trend_30:"৩০ দিনের প্রবণতা",low_30:"৩০ দিনের সর্বনিম্ন",high_30:"৩০ দিনের সর্বোচ্চ",avg_30:"৩০ দিনের গড়",forecast_title:"📈 ৩০ দিনের দাম পূর্বাভাস",forecast_legend:"🟡 আজ — পূর্বাভাস রেখা",mandi_title:"📍 কাছাকাছি মান্ডি দাম",mandi_loading:"লাইভ মান্ডি দাম আনা হচ্ছে…",mandi_error:"মান্ডি দাম পাওয়া যায়নি।",mandi_none:"মান্ডি তথ্য নেই",mandi_source:"উৎস: data.gov.in · Agmarknet",mandi_markets:"মান্ডি পাওয়া গেছে",ai_title:"🤖 AI বিক্রয় পরামর্শ",ai_loading:"৩০ দিনের পূর্বাভাস, আবহাওয়া ও বাজার বিশ্লেষণ…",ai_error:"AI পরামর্শ পাওয়া যায়নি।",ai_recommendation:"AI পরামর্শ",ai_best_window:"সেরা সময়",ai_best_sell:"বিক্রির সেরা সময়",ai_expected:"প্রত্যাশিত দাম",ai_why:"✅ এই পরামর্শ কেন",ai_risks:"⚠️ ঝুঁকি",ai_storage:"সংরক্ষণ পরামর্শ",confidence:"আস্থা",vs_prediction:"অনুমানের তুলনায়",cheapest:"সবচেয়ে সস্তা",back:"← আরেকটি ফসল দেখুন",rising:"↑ বাড়ছে",falling:"↓ কমছে",stable:"→ স্থিতিশীল",week:"সপ্তাহ",source_live:"⚡ লাইভ Agmarknet দাম",source_model:"🤖 ML মডেল দাম",source_fallback:"📊 গড় মান্ডি দাম",mandi_header_market:"মান্ডি / বাজার",mandi_header_price:"মোডাল দাম",mandi_header_range:"পরিসর (ন্যূন–সর্বোচ্চ)",mandi_header_date:"তারিখ",sell_now:"এখনই বিক্রি করুন",wait:"অপেক্ষা করুন",sell_partial:"আংশিক বিক্রি করুন" },
+  as:{ dashboard:"ডেশ্ব'ৰ্ড",loading:"পূৰ্বাভাস প্ৰস্তুত হৈছে…",today_price:"আজিৰ আনুমানিক মূল্য",quintal:"/কুইন্টল",trend_30:"৩০ দিনৰ ধাৰা",low_30:"৩০ দিন নিম্নতম",high_30:"৩০ দিন সৰ্বোচ্চ",avg_30:"৩০ দিন গড়",forecast_title:"📈 ৩০ দিনৰ মূল্য পূৰ্বাভাস",forecast_legend:"🟡 আজি — পূৰ্বাভাস ৰেখা",mandi_title:"📍 ওচৰৰ মণ্ডী মূল্য",mandi_loading:"লাইভ মণ্ডী মূল্য আনি আছে…",mandi_error:"মণ্ডী মূল্য পোৱা নগ'ল।",mandi_none:"মণ্ডী তথ্য নাই",mandi_source:"উৎস: data.gov.in · Agmarknet",mandi_markets:"মণ্ডী পোৱা গ'ল",ai_title:"🤖 AI বিক্ৰী পৰামৰ্শ",ai_loading:"৩০ দিনৰ পূৰ্বাভাস, বতৰ আৰু বজাৰ বিশ্লেষণ…",ai_error:"AI পৰামৰ্শ উপলব্ধ নহয়।",ai_recommendation:"AI পৰামৰ্শ",ai_best_window:"সৰ্বোত্তম সময়",ai_best_sell:"বিক্ৰীৰ সৰ্বোত্তম সময়",ai_expected:"প্ৰত্যাশিত মূল্য",ai_why:"✅ এই পৰামৰ্শ কিয়",ai_risks:"⚠️ বিপদ",ai_storage:"সংৰক্ষণ পৰামৰ্শ",confidence:"বিশ্বাস",vs_prediction:"অনুমানৰ সৈতে",cheapest:"আটাইতকৈ সস্তা",back:"← আন শস্য চাওক",rising:"↑ বাঢ়িছে",falling:"↓ কমিছে",stable:"→ স্থিৰ",week:"সপ্তাহ",source_live:"⚡ লাইভ Agmarknet মূল্য",source_model:"🤖 ML মডেল মূল্য",source_fallback:"📊 গড় মণ্ডী মূল্য",mandi_header_market:"মণ্ডী / বজাৰ",mandi_header_price:"মোডেল মূল্য",mandi_header_range:"পৰিসৰ (নিম্ন–উচ্চ)",mandi_header_date:"তাৰিখ",sell_now:"এতিয়াই বিক্ৰী কৰক",wait:"ৰৈ থাকক",sell_partial:"আংশিক বিক্ৰী কৰক" },
+  ur:{ dashboard:"ڈیش بورڈ",loading:"پیش گوئی تیار ہو رہی ہے…",today_price:"آج کی متوقع قیمت",quintal:"/کوئنٹل",trend_30:"30 دنوں کا رجحان",low_30:"30 دن کم از کم",high_30:"30 دن زیادہ سے زیادہ",avg_30:"30 دن اوسط",forecast_title:"📈 30 دنوں کی قیمت کی پیش گوئی",forecast_legend:"🟡 آج — پیش گوئی لائن",mandi_title:"📍 قریبی منڈی قیمتیں",mandi_loading:"لائیو منڈی قیمتیں لائی جا رہی ہیں…",mandi_error:"منڈی قیمتیں نہیں ملیں۔",mandi_none:"منڈی ڈیٹا نہیں ملا",mandi_source:"ماخذ: data.gov.in · Agmarknet",mandi_markets:"منڈیاں ملیں",ai_title:"🤖 AI فروخت کی سفارش",ai_loading:"30 دن کی پیش گوئی، موسم اور مارکیٹ تجزیہ…",ai_error:"AI سفارش دستیاب نہیں۔",ai_recommendation:"AI سفارش",ai_best_window:"بہترین وقت",ai_best_sell:"فروخت کا بہترین وقت",ai_expected:"متوقع قیمت",ai_why:"✅ یہ مشورہ کیوں",ai_risks:"⚠️ خطرات",ai_storage:"ذخیرہ مشورہ",confidence:"اعتماد",vs_prediction:"پیش گوئی کے مقابلے",cheapest:"سستا",back:"← دوسری فصل دیکھیں",rising:"↑ بڑھ رہا ہے",falling:"↓ گر رہا ہے",stable:"→ مستحکم",week:"ہفتہ",source_live:"⚡ لائیو Agmarknet قیمت",source_model:"🤖 ML ماڈل قیمت",source_fallback:"📊 اوسط منڈی قیمت",mandi_header_market:"منڈی / بازار",mandi_header_price:"موڈل قیمت",mandi_header_range:"حد (کم–زیادہ)",mandi_header_date:"تاریخ",sell_now:"ابھی بیچیں",wait:"انتظار کریں",sell_partial:"جزوی بیچیں" },
+};
+
+// ── Read URL params ────────────────────────────────────────────────────────
+const params      = new URLSearchParams(window.location.search);
+const price       = parseFloat(params.get("price")       || 0);
+const crop        = params.get("crop")                   || "Crop";
+const rainfall    = parseFloat(params.get("rainfall")    || 0);
+const temperature = parseFloat(params.get("temperature") || 30);
+const humidity    = parseFloat(params.get("humidity")    || 60);
+const userState   = params.get("state")                  || "Karnataka";
+const priceSource = params.get("source")                 || "model";
+const lang        = params.get("lang")                   || "en";
+const t           = T[lang] || T["en"];
+
+// ── RTL for Urdu ───────────────────────────────────────────────────────────
+document.body.dir = lang === "ur" ? "rtl" : "ltr";
+
+// ── Apply all translations immediately ────────────────────────────────────
+document.getElementById("loading-text").textContent        = t.loading;
+document.getElementById("dashboard-word").textContent      = t.dashboard;
+document.getElementById("lbl-today-price").textContent     = t.today_price;
+document.getElementById("lbl-30day-trend").textContent     = t.trend_30;
+document.getElementById("lbl-30day-low").textContent       = t.low_30;
+document.getElementById("lbl-30day-high").textContent      = t.high_30;
+document.getElementById("lbl-30day-avg").textContent       = t.avg_30;
+document.getElementById("lbl-forecast-title").textContent  = t.forecast_title;
+document.getElementById("lbl-forecast-legend").textContent = t.forecast_legend;
+document.getElementById("lbl-mandi-title").textContent     = t.mandi_title;
+document.getElementById("lbl-mandi-loading").textContent   = t.mandi_loading;
+document.getElementById("lbl-ai-title").textContent        = t.ai_title;
+document.getElementById("lbl-ai-loading").textContent      = t.ai_loading;
+document.getElementById("back-link").textContent           = t.back;
+
+// ── Header ─────────────────────────────────────────────────────────────────
+document.getElementById("crop-title").textContent       = crop;
+document.getElementById("crop-badge").textContent       = `${crop} · ${userState} Mandi`;
+document.getElementById("mandi-state-badge").textContent = userState;
+document.getElementById("today-price").innerHTML        = `₹${price.toFixed(2)}<span style="font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--muted);margin-left:6px">${t.quintal}</span>`;
+
+const sb = document.getElementById("source-badge");
+if      (priceSource === "live")     { sb.textContent = t.source_live;     sb.className = "source-badge live"; }
+else if (priceSource === "fallback") { sb.textContent = t.source_fallback; sb.className = "source-badge fallback"; }
+else                                 { sb.textContent = t.source_model;    sb.className = "source-badge model"; }
+
+// ── Forecast ───────────────────────────────────────────────────────────────
+async function loadForecast() {
+  let forecast;
+  try {
+    const res = await fetch("http://127.0.0.1:5000/forecast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ crop, rainfall, temperature, humidity, days: 30, state: userState })
+    });
+    if (!res.ok) throw new Error();
+    forecast = (await res.json()).forecast.slice(0, 30);
+  } catch {
+    forecast = simulateForecast(price, 30);
+  }
+  renderForecast(forecast);
+  loadRecommendation(forecast);
+}
+
+function simulateForecast(base, days) {
+  const p = [base];
+  for (let i = 1; i < days; i++) {
+    const c = (Math.random() - 0.48) * p[i-1] * 0.035;
+    p.push(Math.round(Math.max(p[i-1] + c, base * 0.75) * 100) / 100);
+  }
+  return p;
+}
+
+function renderForecast(forecast) {
+  const today  = new Date();
+  const labels = forecast.map((_, i) => {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    return `${d.getDate()}/${d.getMonth()+1}`;
+  });
+  const min = Math.min(...forecast), max = Math.max(...forecast);
+  const avg = forecast.reduce((a,b) => a+b, 0) / forecast.length;
+  const last = forecast[forecast.length - 1];
+
+  document.getElementById("stat-min").textContent = `₹${min.toFixed(0)}`;
+  document.getElementById("stat-max").textContent = `₹${max.toFixed(0)}`;
+  document.getElementById("stat-avg").textContent = `₹${avg.toFixed(0)}`;
+
+  const tt = document.getElementById("trend-tag");
+  const tr = document.getElementById("trend-range");
+  if      (last > price * 1.02) { tt.textContent = t.rising;  tt.className = "tag up"; }
+  else if (last < price * 0.98) { tt.textContent = t.falling; tt.className = "tag down"; }
+  else                          { tt.textContent = t.stable;  tt.className = "tag flat"; }
+  tr.textContent = `₹${min.toFixed(0)} – ₹${max.toFixed(0)}`;
+
+  const ctx  = document.getElementById("forecastChart").getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 280);
+  grad.addColorStop(0, "rgba(76,175,80,0.3)");
+  grad.addColorStop(1, "rgba(76,175,80,0.0)");
+  new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets: [{ data: forecast, borderColor: "#4caf50", backgroundColor: grad, borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: forecast.map((_,i) => i===0 ? "#ffd54f" : "transparent"), pointBorderColor: forecast.map((_,i) => i===0 ? "#ffd54f" : "transparent"), pointRadius: forecast.map((_,i) => i===0 ? 6 : 0), pointHoverRadius: 5, pointHoverBackgroundColor: "#4caf50" }] },
+    options: { responsive: true, plugins: { legend: { display: false }, tooltip: { backgroundColor:"#162016", borderColor:"#2a3d2a", borderWidth:1, titleColor:"#7a9e7a", bodyColor:"#e8f5e9", callbacks: { title: c => `${t.week} ${c[0].dataIndex+1} · ${labels[c[0].dataIndex]}`, label: c => ` ₹${c.parsed.y.toFixed(2)}${t.quintal}` } } }, scales: { x: { grid:{color:"rgba(255,255,255,0.03)"}, ticks:{color:"#7a9e7a",font:{size:10},maxTicksLimit:10} }, y: { grid:{color:"rgba(255,255,255,0.03)"}, ticks:{color:"#7a9e7a",font:{size:10},callback:v=>"₹"+v.toFixed(0)} } } }
+  });
+
+  // Weekly cards
+  const grid = document.getElementById("weeks-grid");
+  for (let w = 0; w < 4; w++) {
+    const slice = forecast.slice(w*7, w*7+7);
+    if (!slice.length) continue;
+    const wAvg  = slice.reduce((a,b)=>a+b,0)/slice.length;
+    const chg   = ((slice[slice.length-1]-slice[0])/slice[0]*100).toFixed(1);
+    const color = chg > 0 ? "#4caf50" : chg < 0 ? "#ef5350" : "#ffd54f";
+    const el    = document.createElement("div");
+    el.className = "week-card";
+    el.innerHTML = `<div class="wk-label">${t.week} ${w+1}</div><div class="wk-price">₹${wAvg.toFixed(0)}</div><div class="wk-change" style="color:${color}">${chg>0?"↑":"↓"} ${Math.abs(chg)}%</div>`;
+    grid.appendChild(el);
+  }
+
+  document.getElementById("page-loading").style.display = "none";
+  document.getElementById("content").style.display = "block";
+}
+
+// ── Mandi Prices ───────────────────────────────────────────────────────────
+async function loadMandiPrices() {
+  try {
+    const res = await fetch(`http://127.0.0.1:5000/mandi?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(userState)}`);
+    if (!res.ok) throw new Error();
+    renderMandiTable((await res.json()).mandis);
+  } catch {
+    document.getElementById("mandi-content").innerHTML = `<div class="mandi-error">⚠️ ${t.mandi_error}</div>`;
+  }
+}
+
+function renderMandiTable(mandis) {
+  if (!mandis || !mandis.length) {
+    document.getElementById("mandi-content").innerHTML = `<div class="mandi-error">${t.mandi_none} — ${crop} in ${userState}.</div>`;
+    return;
+  }
+  const cheapestPrice = Math.min(...mandis.map(m => m.modal_price));
+  let html = `<table class="mandi-table"><thead><tr><th>${t.mandi_header_market}</th><th>${t.mandi_header_price}</th><th>${t.mandi_header_range}</th><th>${t.mandi_header_date}</th></tr></thead><tbody>`;
+  mandis.forEach(m => {
+    const isCheapest = m.modal_price === cheapestPrice;
+    const diff = ((m.modal_price - price) / price * 100).toFixed(1);
+    const diffColor = diff > 0 ? "#ef5350" : "#4caf50";
+    html += `<tr><td><strong>${m.market}</strong>${isCheapest ? `<span class="cheapest-badge">${t.cheapest}</span>` : ''}<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${m.district || m.state}</div></td><td><div class="price-cell">₹${m.modal_price.toFixed(0)}</div><div style="font-size:0.72rem;color:${diffColor};margin-top:2px">${diff > 0 ? '+' : ''}${diff}% ${t.vs_prediction}</div></td><td class="range-cell">₹${m.min_price.toFixed(0)} – ₹${m.max_price.toFixed(0)}</td><td class="date-cell">${m.arrival_date || "—"}</td></tr>`;
+  });
+  html += `</tbody></table><div style="margin-top:12px;font-size:0.72rem;color:var(--muted);text-align:right">${t.mandi_source} &nbsp;|&nbsp; ${mandis.length} ${t.mandi_markets}</div>`;
+  document.getElementById("mandi-content").innerHTML = html;
+}
+
+// ── AI Recommendation ──────────────────────────────────────────────────────
+async function loadRecommendation(forecast) {
+  try {
+    const res = await fetch("http://127.0.0.1:5000/recommend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ crop, price, forecast, state: userState, temperature, rainfall, humidity })
+    });
+    if (!res.ok) throw new Error();
+    renderRecommendation((await res.json()).recommendation);
+  } catch {
+    document.getElementById("ai-content").innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:0.85rem">⚠️ ${t.ai_error}</div>`;
+  }
+}
+
+function renderRecommendation(rec) {
+  const verdictKey  = rec.verdict === "SELL NOW" ? "sell-now" : rec.verdict === "WAIT" ? "wait" : "partial";
+  const icon        = rec.verdict === "SELL NOW" ? "💰" : rec.verdict === "WAIT" ? "⏳" : "⚖️";
+  const verdictText = rec.verdict === "SELL NOW" ? t.sell_now : rec.verdict === "WAIT" ? t.wait : t.sell_partial;
+
+  document.getElementById("ai-confidence-badge").innerHTML = `<span class="confidence-badge ${rec.confidence}">${rec.confidence} ${t.confidence}</span>`;
+  const reasonsHtml = (rec.reasons || []).map(r => `<li>${r}</li>`).join("");
+  const risksHtml   = (rec.risks   || []).map(r => `<li>${r}</li>`).join("");
+
+  document.getElementById("ai-content").innerHTML = `
+    <div class="verdict-banner ${verdictKey}">
+      <div class="verdict-icon">${icon}</div>
+      <div class="verdict-text">
+        <div class="verdict-label">${t.ai_recommendation}</div>
+        <div class="verdict-main ${verdictKey}">${verdictText}</div>
+      </div>
+      <div class="verdict-meta">
+        <div class="vm-label">${t.ai_best_window}</div>
+        <div class="vm-val">${rec.best_sell_window || "—"}</div>
+      </div>
+    </div>
+    <div class="ai-summary">${rec.summary}</div>
+    <div class="best-window-bar">
+      <div><div class="bw-label">${t.ai_best_sell}</div><div class="bw-val">${rec.best_sell_window}</div></div>
+      <div style="text-align:right"><div class="bw-label">${t.ai_expected}</div><div class="bw-price">₹${rec.expected_price_at_best?.toFixed ? rec.expected_price_at_best.toFixed(0) : rec.expected_price_at_best}${t.quintal}</div></div>
+    </div>
+    <div class="ai-grid">
+      <div class="ai-box"><div class="ai-box-title">${t.ai_why}</div><ul class="ai-list">${reasonsHtml}</ul></div>
+      <div class="ai-box"><div class="ai-box-title">${t.ai_risks}</div><ul class="ai-list risk">${risksHtml}</ul></div>
+    </div>
+    <div class="storage-tip"><span>🏪</span><span><strong>${t.ai_storage}:</strong> ${rec.storage_tip}</span></div>
+  `;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadForecast();
+loadMandiPrices();
+loadNews();
+
+// ── Agriculture News (GDELT — free, no API key needed) ────────────────────
+async function loadNews() {
+  const badge = document.getElementById("news-crop-badge");
+  const el    = document.getElementById("news-content");
+  badge.textContent = crop;
+
+  try {
+    const q   = encodeURIComponent(`"${crop}" agriculture india`);
+    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=6&sort=datedesc&format=json&sourcelang=english`;
+
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const res   = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    const json  = await res.json();
+    const articles = json.articles || [];
+
+    if (!articles.length) throw new Error("no results");
+
+    el.innerHTML = articles.map(a => {
+      let date = "";
+      if (a.seendate) {
+        const d = a.seendate; // YYYYMMDDTHHMMSSZ
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        date = `${d.slice(6,8)} ${months[parseInt(d.slice(4,6))-1]}`;
+      }
+      return `
+        <div class="news-item">
+          <a class="news-title" href="${a.url}" target="_blank" rel="noopener">${a.title}</a>
+          <div class="news-meta">
+            <span class="news-source">📰 ${a.domain || "News"}</span>
+            ${date ? `<span>· ${date}</span>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+
+  } catch(e) {
+    // Fallback curated links — always works
+    el.innerHTML = [
+      { t: `${crop} Price News — Krishi Jagran`,   u: `https://krishijagran.com/search/?q=${encodeURIComponent(crop)}` },
+      { t: "Live Mandi Prices — Agmarknet",         u: "https://agmarknet.gov.in" },
+      { t: "Commodity Prices — Economic Times",     u: "https://economictimes.com/markets/commodities" },
+      { t: "Agriculture News — The Hindu",          u: "https://www.thehindu.com/sci-tech/agriculture" },
+      { t: "Farmer News & Schemes — Farmer.gov.in", u: "https://farmer.gov.in" },
+      { t: "Kisan Suvidha — Crop Market Rates",     u: "https://kisansuvidha.gov.in" },
+    ].map(l => `
+      <div class="news-item">
+        <a class="news-title" href="${l.u}" target="_blank" rel="noopener">${l.t}</a>
+        <div class="news-meta"><span class="news-source">🔗 Tap to read</span></div>
+      </div>`).join("");
+  }
+}
+</script>
+</body>

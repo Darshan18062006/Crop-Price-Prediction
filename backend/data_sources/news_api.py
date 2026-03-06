@@ -1,0 +1,1 @@
+# news_api.py — removed (NewsAPI + TextBlob dependency dropped)
