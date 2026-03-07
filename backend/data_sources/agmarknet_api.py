@@ -1,7 +1,7 @@
 import os
 import requests
 
-API_KEY     = os.environ.get("DATA_GOV_API_KEY", "579b464db66ec23bdd0000016e2badb24220469474b589d2124d8347")
+API_KEY     = os.environ.get("DATA_GOV_API_KEY", "")
 RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 BASE_URL    = "https://api.data.gov.in/resource/" + RESOURCE_ID
 
@@ -47,7 +47,7 @@ def get_mandi_prices_for_crop(crop: str, state: str = None, limit: int = 20):
         params["filters[state]"] = state
 
     try:
-        r = requests.get(BASE_URL, params=params, timeout=6)
+        r = requests.get(BASE_URL, params=params, timeout=10)
         r.raise_for_status()
         data    = r.json()
         records = data.get("records", [])
@@ -91,7 +91,7 @@ def get_mandi_prices(state: str = None, limit: int = 50):
         params["filters[state]"] = STATE_MAP.get(state.lower(), state)
 
     try:
-        r = requests.get(BASE_URL, params=params, timeout=6)
+        r = requests.get(BASE_URL, params=params, timeout=10)
         r.raise_for_status()
         records = r.json().get("records", [])
         if not records:
@@ -118,13 +118,42 @@ def _fallback_for_crop(crop, state=None):
     base = base_prices.get(crop, 4000)
     st   = state or "Karnataka"
 
+    # State-specific major mandi markets
+    STATE_MANDIS = {
+        "Karnataka":      ["KR Market", "Yeshwanthpur", "Hubli", "Mysore", "Belgaum"],
+        "Maharashtra":    ["Pune APMC", "Mumbai APMC", "Nashik", "Nagpur", "Aurangabad"],
+        "Andhra Pradesh": ["Kurnool", "Guntur", "Vijayawada", "Visakhapatnam", "Tirupati"],
+        "Telangana":      ["Bowenpally", "Gaddiannaram", "Warangal", "Nizamabad", "Karimnagar"],
+        "Tamil Nadu":     ["Koyambedu", "Madurai", "Coimbatore", "Salem", "Tirupur"],
+        "Kerala":         ["Chalai", "Ernakulam", "Kozhikode", "Thrissur", "Kollam"],
+        "Gujarat":        ["Ahmedabad APMC", "Surat", "Rajkot", "Vadodara", "Junagadh"],
+        "Rajasthan":      ["Jaipur Mandi", "Jodhpur", "Kota", "Bikaner", "Alwar"],
+        "Uttar Pradesh":  ["Azadpur", "Lucknow", "Kanpur", "Agra", "Varanasi"],
+        "Madhya Pradesh": ["Bhopal Mandi", "Indore", "Gwalior", "Jabalpur", "Ujjain"],
+        "Punjab":         ["Amritsar", "Ludhiana", "Patiala", "Jalandhar", "Bathinda"],
+        "Haryana":        ["Azadpur", "Sonipat", "Karnal", "Hisar", "Rohtak"],
+        "West Bengal":    ["Koley Market", "Howrah", "Siliguri", "Durgapur", "Asansol"],
+        "Odisha":         ["Bhubaneswar", "Cuttack", "Berhampur", "Sambalpur", "Rourkela"],
+        "Bihar":          ["Patna Mandi", "Muzaffarpur", "Gaya", "Bhagalpur", "Darbhanga"],
+        "Assam":          ["Fancy Bazar", "Dibrugarh", "Silchar", "Jorhat", "Nagaon"],
+        "Jharkhand":      ["Ranchi Mandi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh"],
+        "Chhattisgarh":   ["Raipur Mandi", "Bhilai", "Bilaspur", "Korba", "Jagdalpur"],
+        "Himachal Pradesh":["Shimla", "Solan", "Kullu", "Mandi", "Kangra"],
+        "Uttarakhand":    ["Dehradun", "Haridwar", "Roorkee", "Haldwani", "Nainital"],
+        "Goa":            ["Mapusa Market", "Vasco", "Margao", "Panaji", "Ponda"],
+    }
+
+    # Pick the market list for the given state, fall back to generic names
+    market_names = STATE_MANDIS.get(st, [
+        f"{st} Main Mandi", f"{st} APMC", f"{st} Central Market",
+        f"{st} Wholesale", f"{st} Local Mandi"
+    ])
+
     # Simulate 5 nearby mandis with slight price variation
+    variations = [0.97, 1.00, 0.95, 1.02, 0.98]
     mandis = [
-        ("KR Market",       st, round(base * 0.97, 0)),
-        ("Yeshwanthpur",    st, round(base * 1.00, 0)),
-        ("Hubli",           st, round(base * 0.95, 0)),
-        ("Mysore",          st, round(base * 1.02, 0)),
-        ("Belgaum",         st, round(base * 0.98, 0)),
+        (market_names[i], st, round(base * variations[i], 0))
+        for i in range(min(5, len(market_names)))
     ]
 
     return [{
