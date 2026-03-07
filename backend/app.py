@@ -19,7 +19,9 @@ def home():
     return render_template("index.html")
 
 
-
+@app.route("/result.html")
+def result():
+    return render_template("result.html")
 
 # ─────────────────────────────────────────
 # Predict Price
