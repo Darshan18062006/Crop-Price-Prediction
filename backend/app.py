@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify,render_template
 from flask_cors import CORS
 
 from predict import predict_price, forecast_prices
-
 # Optional: import data sources if available
 try:
     from data_sources.weather_api import get_weather
@@ -12,16 +11,14 @@ except ImportError:
     get_mandi_prices = None
     get_mandi_prices_for_crop = None
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="../frontend")
 CORS(app)
 
-
-# ─────────────────────────────────────────
-# Home
-# ─────────────────────────────────────────
 @app.route("/")
 def home():
-    return "Crop Price Prediction API Running"
+    return render_template("index.html")
+
+
 
 
 # ─────────────────────────────────────────
